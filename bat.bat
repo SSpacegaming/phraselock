@@ -13,7 +13,7 @@ if errorlevel 1 (
   pause
   exit /b 1
 )
-python -m pip install --upgrade pyinstaller pywin32 pillow psutil
+python -m pip install --upgrade pyinstaller pywin32 pillow psutil pystray
 if errorlevel 1 goto :fail
 if exist tests (
   echo Running tests...
@@ -24,7 +24,7 @@ if not exist icon.ico (
   echo ERROR: icon.ico is missing.
   goto :fail
 )
-pyinstaller --noconfirm --clean --onefile --noconsole --noupx --name PhraseLock --icon icon.ico --hidden-import settings --hidden-import PhraseLockWatchdog --hidden-import win32timezone phrase_lock.py
+pyinstaller --noconfirm --clean --onefile --noconsole --noupx --name PhraseLock --icon icon.ico --add-data "icon.ico;." --add-data "icon.png;." --hidden-import settings --hidden-import PhraseLockWatchdog --hidden-import win32timezone --hidden-import tray --hidden-import pystray._win32 phrase_lock.py
 if errorlevel 1 goto :fail
 echo.
 echo Build succeeded: %CD%\dist\PhraseLock.exe

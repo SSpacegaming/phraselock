@@ -13,6 +13,7 @@ import sys
 import tkinter as tk
 from tkinter import ttk, simpledialog, messagebox, filedialog, colorchooser
 from datetime import datetime
+from appicon import apply_window_icon
 
 import phrase_lock
 
@@ -163,6 +164,7 @@ def main():
             pass
 
     root = tk.Tk()
+    apply_window_icon(root)
     root.title("PhraseLock - Settings")
     root.geometry("760x820")
     root.minsize(680, 560)

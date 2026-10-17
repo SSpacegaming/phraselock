@@ -38,6 +38,7 @@ from session import (
     start_watchdog,
 )
 
+from tray import start_tray
 
 def _phrase_items_for_overlay(cfg):
     return get_phrases(cfg)
@@ -54,6 +55,7 @@ def _run_monitor():
         _start_idle_monitor(cfg)
         start_standby_overlay(_phrase_items_for_overlay)
         start_watchdog()
+        start_tray()
         watch_session_events()
     except Exception:
         import traceback
@@ -62,6 +64,8 @@ def _run_monitor():
 
 if __name__ == "__main__":
     if "--settings" in sys.argv:
+        from tray import mark_settings_open
+        mark_settings_open()
         import settings
         settings.main()
         raise SystemExit
@@ -100,5 +104,7 @@ if __name__ == "__main__":
         raise SystemExit
 
     # No arguments: open the control panel. The background monitor uses --monitor.
+    from tray import mark_settings_open
+    mark_settings_open()
     import settings
     settings.main()

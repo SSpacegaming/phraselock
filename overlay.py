@@ -175,6 +175,17 @@ def _clear_preview_pid():
     except Exception:
         pass
 
+def _audio_duration_ms(path, fallback=3000, cap=15000):
+    """Best-effort length of the success sound so we don't exit mid-playback."""
+    try:
+        if path and path.lower().endswith(".wav"):
+            import wave
+            with wave.open(path, "rb") as w:
+                return min(cap, int(w.getnframes() / float(w.getframerate()) * 1000) + 250)
+    except Exception:
+        pass
+    return fallback if path else 0
+
 def show_overlay(cfg, phrase_items, record_stats=True, preview=False, standby=None):
     """Show the lock overlay.
 
@@ -462,8 +473,10 @@ def show_overlay(cfg, phrase_items, record_stats=True, preview=False, standby=No
                 update_streak(first_try)
                 add_progress(50 if first_try else 20, successful=True)
         root.grab_release()
-        if play_sound and success_sound:
-            root.after(300, root.destroy)
+        wait_ms = _audio_duration_ms(success_sound) if play_sound else 0
+        if wait_ms:
+            root.withdraw()   # hide the overlay right away, keep the process alive
+            root.after(wait_ms, root.destroy)
         else:
             root.destroy()
         if not emergency and cfg.get("focus_session_enabled", False) and record_stats:

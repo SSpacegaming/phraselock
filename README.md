@@ -195,6 +195,6 @@ PhraseLock is released under the [MIT License](LICENSE).
 
 ---
 
-**PhraseLock v1.0.1** · See the [changelog](CHANGELOG.md)
+**PhraseLock v1.0.2** · See the [changelog](CHANGELOG.md)
 
 Made for customizable challenges, personal discipline, and focus.

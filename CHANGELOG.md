@@ -7,13 +7,24 @@ and this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-10-18
+
 ### Added
-- `LICENSE` (MIT), `CHANGELOG.md`, pinned `requirements.txt` / `requirements-build.txt`.
+- `LICENSE` (MIT).
+- `CHANGELOG.md` with the history of each version.
+- Pinned `requirements.txt` (run from source) and `requirements-build.txt`
+  (build the executable).
 - GitHub issue templates (bug report, feedback).
+- Screenshots of the lock overlay and the settings window in the README.
 
 ### Changed
-- The GitHub Actions build now installs the pinned requirements and bundles the
-  application icons and the tray modules, like `bat.bat` does.
+- The GitHub Actions build now installs the pinned requirements and uses the same
+  PyInstaller options as `bat.bat`: it bundles `pystray`, the tray modules and the
+  application icons, so executables built by the workflow include the system tray
+  icon and the window icon.
+- `bat.bat` installs `requirements-build.txt`.
+- README updated (license, running from source, project structure, links to the
+  issue templates and the changelog) and `TODO.md` updated.
 
 ## [1.0.1] - 2026-10-18
 
@@ -54,6 +65,7 @@ and this project follows [Semantic Versioning](https://semver.org/).
   (streaks, daily goals, XP, levels, badges), emergency recovery password and a
   Windows executable.
 
-[Unreleased]: https://github.com/nanana677777/phraselock/compare/v1.0.1...HEAD
+[Unreleased]: https://github.com/nanana677777/phraselock/compare/v1.0.2...HEAD
+[1.0.2]: https://github.com/nanana677777/phraselock/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/nanana677777/phraselock/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/nanana677777/phraselock/releases/tag/v1.0.0

@@ -33,6 +33,7 @@ DEFAULT_CONFIG = {
     "phrases_file": "",
     "title": "Conditional unlock",
     "background_image": "",
+    "background_mode": "fill",   # fill | fit | stretch | center | tile
     "panel_color": "#1a1a2e",
     "panel_opacity": 100,
     "required_repeats": 1,

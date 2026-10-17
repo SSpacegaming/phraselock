@@ -4,7 +4,7 @@ Tick a box when a feature is done (clickable on GitHub).
 
 ## 🔴 High priority
 
-- [ ] Background image not the right scale: add display options (fit, fill, stretch, center, tile)
+- [x] Background image not the right scale: add display options (fit, fill, stretch, center, tile)
 - [ ] Automatic save at every change, not only when clicking the Save button
 - [ ] Display an icon in the hidden icons tray to show whether the software is running or not
 - [ ] Add a panic hotkey or a "disable for X minutes" option that doesn't require the full challenge

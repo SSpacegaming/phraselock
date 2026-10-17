@@ -10,6 +10,17 @@ import subprocess
 import tkinter as tk
 from tkinter import font as tkfont
 
+import tkinter as _tkmod
+import traceback as _tb
+
+_orig_tk_init = _tkmod.Tk.__init__
+
+def _traced_tk_init(self, *a, **k):
+    log("Tk() created from:\n" + "".join(_tb.format_stack(limit=6)))
+    _orig_tk_init(self, *a, **k)
+
+_tkmod.Tk.__init__ = _traced_tk_init
+
 import win32api
 import win32event
 import win32con
@@ -34,6 +45,9 @@ except Exception:
     winsound = None
 
 OVERLAY_MUTEX_NAME = "Local\\PhraseLockOverlay"
+
+BACKGROUND_MODES = ("fill", "fit", "stretch", "center", "tile")
+
 
 _standby = {
     "trigger": threading.Event(),
@@ -71,6 +85,107 @@ def _pick_and_remember(items, previous=None, cfg=None):
     return text
 
 
+def fit_background(img, screen_w, screen_h, mode="fill", bg_color="#111111"):
+    """Return an RGB image of exactly screen_w x screen_h.
+
+    fill    - scale to cover the screen, keep aspect ratio, crop the overflow
+    fit     - scale to fit inside the screen, keep aspect ratio, bars around it
+    stretch - force to screen size (distorts)
+    center  - original size, centered (cropped if bigger, bars if smaller)
+    tile    - repeat at original size
+    """
+    from PIL import Image, ImageOps, ImageColor
+
+    mode = (mode or "fill").lower()
+    if mode not in BACKGROUND_MODES:
+        mode = "fill"
+
+    try:
+        img = ImageOps.exif_transpose(img)   # honour phone-photo rotation
+    except Exception:
+        pass
+    img = img.convert("RGB")
+    iw, ih = img.size
+    resample = Image.Resampling.LANCZOS
+
+    # Degenerate sizes: tiling a 2px image would take forever.
+    if mode == "tile" and (iw < 16 or ih < 16):
+        mode = "stretch"
+
+    if mode == "stretch":
+        return img.resize((screen_w, screen_h), resample)
+
+    canvas = Image.new("RGB", (screen_w, screen_h), ImageColor.getrgb(bg_color))
+
+    if mode == "fill":
+        scale = max(screen_w / iw, screen_h / ih)
+        nw, nh = max(1, round(iw * scale)), max(1, round(ih * scale))
+        resized = img.resize((nw, nh), resample)
+        left, top = (nw - screen_w) // 2, (nh - screen_h) // 2
+        return resized.crop((left, top, left + screen_w, top + screen_h))
+
+    if mode == "fit":
+        scale = min(screen_w / iw, screen_h / ih)
+        nw, nh = max(1, round(iw * scale)), max(1, round(ih * scale))
+        resized = img.resize((nw, nh), resample)
+        canvas.paste(resized, ((screen_w - nw) // 2, (screen_h - nh) // 2))
+        return canvas
+
+    if mode == "center":
+        # paste() clips negative offsets, so oversized images get cropped evenly
+        canvas.paste(img, ((screen_w - iw) // 2, (screen_h - ih) // 2))
+        return canvas
+
+    # tile
+    for y in range(0, screen_h, ih):
+        for x in range(0, screen_w, iw):
+            canvas.paste(img, (x, y))
+    return canvas
+
+PREVIEW_PID_PATH = os.path.join(os.path.dirname(CONFIG_PATH), "preview.pid")
+
+def _replace_previous_preview():
+    """Close an older preview window, then register this process as the preview."""
+    try:
+        import psutil
+    except ImportError:
+        psutil = None
+
+    try:
+        with open(PREVIEW_PID_PATH, "r") as f:
+            old_pid = int(f.read().strip())
+    except Exception:
+        old_pid = None
+
+    if psutil and old_pid and old_pid != os.getpid():
+        try:
+            proc = psutil.Process(old_pid)
+            # Only kill it if it really is a preview (guards against PID reuse).
+            if "--preview" in (proc.cmdline() or []):
+                subprocess.run(
+                    ["taskkill", "/PID", str(old_pid), "/T", "/F"],
+                    creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+                    capture_output=True, timeout=5,
+                )
+        except Exception:
+            pass
+
+    try:
+        os.makedirs(os.path.dirname(PREVIEW_PID_PATH), exist_ok=True)
+        with open(PREVIEW_PID_PATH, "w") as f:
+            f.write(str(os.getpid()))
+    except Exception:
+        pass
+
+
+def _clear_preview_pid():
+    try:
+        with open(PREVIEW_PID_PATH, "r") as f:
+            if int(f.read().strip()) == os.getpid():
+                os.remove(PREVIEW_PID_PATH)
+    except Exception:
+        pass
+
 def show_overlay(cfg, phrase_items, record_stats=True, preview=False, standby=None):
     """Show the lock overlay.
 
@@ -84,6 +199,7 @@ def show_overlay(cfg, phrase_items, record_stats=True, preview=False, standby=No
     required = max(1, int(cfg.get("required_repeats", 1) or 1))
     reset_on_error = bool(cfg.get("reset_on_error", True))
     bg_image_path = _remote_media_cache((cfg.get("background_image") or "").strip(), "image")
+    bg_mode = str(cfg.get("background_mode", "fill")).lower()
     panel_color = cfg.get("panel_color") or "#1a1a2e"
     try:
         panel_opacity = max(10, min(100, int(cfg.get("panel_opacity", 100)))) / 100.0
@@ -120,6 +236,9 @@ def show_overlay(cfg, phrase_items, record_stats=True, preview=False, standby=No
     theme_red, theme_cyan, theme_purple = theme_map.get(theme, theme_map["Cyber Red"])
     start_time = time.monotonic()
 
+    if preview:
+        _replace_previous_preview()
+
     root = tk.Tk()
     if standby is not None:
         root.withdraw()
@@ -154,10 +273,13 @@ def show_overlay(cfg, phrase_items, record_stats=True, preview=False, standby=No
     bg_pil = None
     if pil_available and bg_image_path and os.path.isfile(bg_image_path):
         try:
-            bg_pil = Image.open(bg_image_path).convert("RGB")
-            bg_pil = bg_pil.resize((screen_w, screen_h), Image.Resampling.LANCZOS)
+            with Image.open(bg_image_path) as src:
+                bg_pil = fit_background(src, screen_w, screen_h, bg_mode)
+            log(f"Background loaded: mode={bg_mode} file={bg_image_path}")
         except Exception:
             log("Could not load the background image:\n" + traceback.format_exc())
+    elif bg_image_path:
+        log(f"Background file not found: {bg_image_path}")
 
     if bg_pil is None and pil_available:
         bg_pil = Image.new("RGB", (screen_w, screen_h), "#111111")
@@ -190,7 +312,7 @@ def show_overlay(cfg, phrase_items, record_stats=True, preview=False, standby=No
             line_draw = ImageDraw.Draw(composed)
             for yy in range(0, screen_h, 6):
                 line_draw.line((0, yy, screen_w, yy), fill=(10, 10, 16, 42), width=1)
-        bg_photo = ImageTk.PhotoImage(composed.convert("RGB"))
+        bg_photo = ImageTk.PhotoImage(composed.convert("RGB"), master=root)
         bg_label = tk.Label(root, image=bg_photo, bd=0, highlightthickness=0)
         bg_label.image = bg_photo
         bg_label.place(x=0, y=0, relwidth=1, relheight=1)
@@ -200,7 +322,7 @@ def show_overlay(cfg, phrase_items, record_stats=True, preview=False, standby=No
 
     if pil_available and composed is not None:
         panel_crop = composed.crop((panel_x, panel_y, panel_x + panel_w, panel_y + panel_h)).convert("RGB")
-        panel_photo = ImageTk.PhotoImage(panel_crop)
+        panel_photo = ImageTk.PhotoImage(panel_crop, master=root)
         content = tk.Canvas(root, width=panel_w, height=panel_h, bd=0,
                             highlightthickness=0, relief="flat", bg=panel_color)
         content.place(x=panel_x, y=panel_y)
@@ -533,6 +655,8 @@ def show_overlay(cfg, phrase_items, record_stats=True, preview=False, standby=No
         if not preview:
             root.grab_set()
         root.mainloop()
+        if preview:
+            _clear_preview_pid()
         return
 
     def watched_mtimes():

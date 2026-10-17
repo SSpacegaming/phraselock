@@ -411,7 +411,11 @@ def main():
     tk.Button(bg_frame, text="Online URL...", command=set_image_url).pack(side="left", padx=(6, 0))
     note(t_look, "For online media, use a direct file URL (it must return the image/audio itself, not a webpage).", size=8)
     pad(tk.Button(t_look, text="Remove image (solid background)", command=lambda: bg_image_var.set("")), pady=(0, 12))
-
+    bg_mode_var = tk.StringVar(value=str(cfg.get("background_mode", "fill")).capitalize())
+    pad(tk.Label(t_look, text="Image display mode:"), pady=(0, 3))
+    pad(tk.OptionMenu(t_look, bg_mode_var, "Fill", "Fit", "Stretch", "Center", "Tile"), pady=(0, 4))
+    note(t_look, "Fill: cover the screen, crop the overflow. Fit: whole image visible, bars around it. "
+                 "Stretch: distorts. Center: original size. Tile: repeat.", size=8)
     pad(tk.Label(t_look, text="Text panel color:"))
     panel_color_var = tk.StringVar(value=cfg.get("panel_color", DEFAULT_CONFIG["panel_color"]))
     color_frame = tk.Frame(t_look)
@@ -850,7 +854,6 @@ def main():
         try:
             script = os.path.abspath(phrase_lock.__file__)
             if getattr(sys, "frozen", False):
-                # Run this same executable in preview mode, not the settings UI.
                 exe = sys.executable
                 command = [exe, "--preview"]
                 cwd = os.path.dirname(exe)
@@ -878,6 +881,7 @@ def main():
             "phrases": phrases,
             "phrases_file": phrases_file_var.get().strip(),
             "background_image": bg_image_var.get().strip(),
+            "background_mode": bg_mode_var.get().lower(),
             "panel_color": panel_color_var.get().strip() or DEFAULT_CONFIG["panel_color"],
             "panel_opacity": num(panel_opacity_var, 100, 10, 100),
             "required_repeats": num(repeats_var, 1, 1, 20),

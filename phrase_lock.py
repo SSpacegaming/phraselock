@@ -5,6 +5,7 @@ unchanged (`phrase_lock.CONFIG_DIR`, `phrase_lock.load_config`, etc.).
 """
 
 import os
+os.environ["PYINSTALLER_RESET_ENVIRONMENT"] = "1"
 import sys
 
 from config import (

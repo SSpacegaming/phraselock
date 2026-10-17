@@ -1002,6 +1002,61 @@ def main():
     footer_btn("[ LOCK NOW ]", launch_manual_lock, "right")
 
     root.bind("<Control-s>", on_save)
+    
+    # ------------------------------------------------------------ autosave
+    autosave = {"job": None}
+
+    watched_vars = [
+        enabled_var, title_var, phrases_file_var, difficulty_var, theme_var, font_var,
+        ui_scale_var, scanlines_var, glow_var, glitch_var, bg_image_var, bg_mode_var,
+        panel_color_var, panel_opacity_var, play_sound_var, sound_error_var,
+        success_sound_var, error_sound_var, repeats_var, reset_on_error_var,
+        strict_mode_var, weighting_var, disable_paste_var, case_insensitive_var,
+        min_delay_var, max_attempts_var, lockout_seconds_var, daily_goal_var,
+        schedule_enabled_var, schedule_start_var, schedule_end_var, focus_enabled_var,
+        focus_minutes_var, idle_enabled_var, idle_minutes_var, auto_protection_var,
+        *day_vars,
+    ]
+
+    def do_autosave():
+        nonlocal cfg
+        autosave["job"] = None
+        try:
+            # Half-typed or invalid values (bad colour, bad HH:MM) are skipped
+            # silently; they get saved as soon as they become valid.
+            if validation_problem():
+                return
+            new_cfg = {**cfg, **collect_cfg()}
+            if new_cfg == cfg:
+                return
+            was_enabled = cfg.get("enabled", True)
+            save_config(new_cfg)
+            cfg = new_cfg
+            if new_cfg.get("enabled", True) and not was_enabled:
+                try:
+                    ensure_phrase_lock_monitor()
+                except Exception:
+                    pass
+            flash_saved()
+        except Exception as exc:
+            try:
+                phrase_lock.log(f"Autosave failed: {exc}")
+            except Exception:
+                pass
+
+    def schedule_autosave(*_):
+        if autosave["job"]:
+            root.after_cancel(autosave["job"])
+        autosave["job"] = root.after(400, do_autosave)
+
+    for v in watched_vars:
+        v.trace_add("write", schedule_autosave)
+
+    # Multi-line boxes don't have variables, so hook the keyboard instead.
+    for txt in (phrases_text, blocked_apps_text):
+        txt.bind("<KeyRelease>", schedule_autosave, add="+")
+        txt.bind("<FocusOut>", schedule_autosave, add="+")
+    
     root.mainloop()
 
 

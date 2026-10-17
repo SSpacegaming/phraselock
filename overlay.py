@@ -351,7 +351,10 @@ def show_overlay(cfg, phrase_items, record_stats=True, preview=False, standby=No
                 update_streak(first_try)
                 add_progress(50 if first_try else 20, successful=True)
         root.grab_release()
-        root.destroy()
+        if play_sound and success_sound:
+            root.after(300, root.destroy)
+        else:
+            root.destroy()
         if not emergency and cfg.get("focus_session_enabled", False) and record_stats:
             try:
                 command, cwd = self_command("--focus-session")

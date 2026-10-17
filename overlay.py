@@ -10,17 +10,6 @@ import subprocess
 import tkinter as tk
 from tkinter import font as tkfont
 
-import tkinter as _tkmod
-import traceback as _tb
-
-_orig_tk_init = _tkmod.Tk.__init__
-
-def _traced_tk_init(self, *a, **k):
-    log("Tk() created from:\n" + "".join(_tb.format_stack(limit=6)))
-    _orig_tk_init(self, *a, **k)
-
-_tkmod.Tk.__init__ = _traced_tk_init
-
 import win32api
 import win32event
 import win32con

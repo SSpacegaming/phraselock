@@ -17,11 +17,11 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install dependencies
-        run: python -m pip install pywin32 pillow pyinstaller psutil
+        run: python -m pip install -r requirements-build.txt
       - name: Unit tests
         run: python -m unittest discover -s tests -v
       - name: Build single PhraseLock.exe
-        run: pyinstaller --noconfirm --clean --onefile --noconsole --noupx --name PhraseLock --icon icon.ico --hidden-import settings --hidden-import PhraseLockWatchdog --hidden-import win32timezone phrase_lock.py
+        run: pyinstaller --noconfirm --clean --onefile --noconsole --noupx --name PhraseLock --icon icon.ico --add-data "icon.ico;." --add-data "icon.png;." --hidden-import settings --hidden-import PhraseLockWatchdog --hidden-import win32timezone --hidden-import tray --hidden-import appicon --hidden-import pystray._win32 phrase_lock.py
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:

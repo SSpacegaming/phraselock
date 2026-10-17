@@ -1,0 +1,66 @@
+name: Bug report
+description: Something does not work as expected
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug.
+        **Never include passwords (including your emergency password) or other sensitive information.**
+  - type: input
+    id: version
+    attributes:
+      label: PhraseLock version
+      description: For example `v1.0.1`, or the commit if you run from source.
+      placeholder: v1.0.1
+    validations:
+      required: true
+  - type: dropdown
+    id: how
+    attributes:
+      label: How do you run PhraseLock?
+      options:
+        - PhraseLock.exe from the Releases page
+        - From source (python phrase_lock.py)
+        - Exe I built myself
+    validations:
+      required: true
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version
+      placeholder: Windows 11 23H2
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open the settings
+        2. ...
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Include the exact text of any error message, or a screenshot.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Log output
+      description: |
+        The log file is at `%APPDATA%\PhraseLock\phraselock.log`. Paste the relevant lines only,
+        and remove anything personal.
+      render: text

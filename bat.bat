@@ -13,7 +13,7 @@ if errorlevel 1 (
   pause
   exit /b 1
 )
-python -m pip install --upgrade pyinstaller pywin32 pillow psutil pystray
+python -m pip install -r requirements-build.txt
 if errorlevel 1 goto :fail
 if exist tests (
   echo Running tests...

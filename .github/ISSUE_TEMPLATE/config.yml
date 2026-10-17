@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Roadmap
+    url: https://github.com/nanana677777/phraselock/blob/main/TODO.md
+    about: Check whether your idea is already planned before opening a feedback issue.

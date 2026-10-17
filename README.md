@@ -17,16 +17,24 @@ Customize your phrases, choose a visual theme, track your progress, and make eac
 - **Phrase libraries** — support for external TXT, CSV, and JSON phrase collections.
 - **Visual customization** — themes, backgrounds, interface scaling, and visual effects are available in the project.
 - **Emergency recovery** — configure an emergency password before using protection features.
+- **System tray icon** — see at a glance that PhraseLock is running; open the settings from the tray.
 - **Windows executable** — get started without manually running the Python source code.
 
 Feature availability may depend on the version and configuration you are running.
+
+## 📸 Screenshots
+
+Uncomment this section once the images exist (see TODO.md).
+
+![Lock overlay](docs/screenshots/overlay.png)
+![Settings](docs/screenshots/settings.png)
 
 ## 📥 Installation
 
 ### Option 1: Download the release
 
 1. Open the [PhraseLock Releases page](https://github.com/nanana677777/phraselock/releases).
-2. Select **PhraseLock v1.0.0**.
+2. Select the latest release (see the [changelog](CHANGELOG.md) for what changed).
 3. Download `PhraseLock.exe` from the release assets.
 4. Save it somewhere convenient, such as a dedicated `PhraseLock` folder.
 5. Run the executable and configure your preferences.
@@ -97,9 +105,9 @@ Want to inspect the code or build your own executable?
 ### Requirements
 
 - Windows
-- Python compatible with the project
+- Python 3.12 (the version used by the GitHub Actions build)
 - Git (optional, for cloning the repository)
-- The dependencies and build tools used by the project
+- The pinned dependencies listed in [`requirements.txt`](requirements.txt) (run from source) or [`requirements-build.txt`](requirements-build.txt) (build the executable)
 
 ### Get the source
 
@@ -108,7 +116,14 @@ git clone https://github.com/nanana677777/phraselock.git
 cd phraselock
 ```
 
-Install the dependencies required by the build script, then follow the instructions in [`bat.bat`](bat.bat) or the GitHub Actions workflow in [`.github/workflows/build.yml`](.github/workflows/build.yml).
+To run from source, install the dependencies and start the app:
+
+```bash
+python -m pip install -r requirements.txt
+python phrase_lock.py
+```
+
+To build the executable, run [`bat.bat`](bat.bat) (it installs `requirements-build.txt` for you) or follow the GitHub Actions workflow in [`.github/workflows/build.yml`](.github/workflows/build.yml).
 
 The automated workflow runs the unit tests and builds a Windows executable.
 
@@ -133,11 +148,16 @@ Running the tests before building helps identify problems in the project's teste
 | `overlay.py`            | Challenge overlay                    |
 | `media.py`              | Media and audio functionality        |
 | `PhraseLockWatchdog.py` | Optional watchdog functionality      |
+| `tray.py`               | System tray status icon              |
+| `appicon.py`            | Shared application icon helpers      |
 | `tests/`                | Unit tests                           |
 | `phrases.csv`           | CSV phrase collection                |
 | `phrases.json`          | JSON phrase collection               |
 | `phrases.txt`           | Text phrase collection               |
-| `icon.ico`              | Application icon                     |
+| `icon.ico`, `icon.png`  | Application icon                     |
+| `requirements*.txt`     | Pinned dependencies (run / build)    |
+| `CHANGELOG.md`          | Version history                      |
+| `LICENSE`               | MIT license                          |
 
 ## 🐛 Troubleshooting
 
@@ -163,7 +183,7 @@ Running the tests before building helps identify problems in the project's teste
 
 PhraseLock is an evolving project, and feedback is welcome.
 
-- **Report a bug:** [Open an issue](https://github.com/nanana677777/phraselock/issues).
+- **Report a bug or give feedback:** [Open an issue](https://github.com/nanana677777/phraselock/issues/new/choose) and pick a template.
 - **Browse the code:** [View the repository](https://github.com/nanana677777/phraselock).
 - **Download updates:** [View releases](https://github.com/nanana677777/phraselock/releases).
 
@@ -171,10 +191,10 @@ When reporting a bug, include the PhraseLock version, your Windows version, the 
 
 ## 📜 License
 
-See the repository for the project's license and usage terms.
+PhraseLock is released under the [MIT License](LICENSE).
 
 ---
 
-**PhraseLock v1.0.0** · First public release
+**PhraseLock v1.0.1** · See the [changelog](CHANGELOG.md)
 
 Made for customizable challenges, personal discipline, and focus.

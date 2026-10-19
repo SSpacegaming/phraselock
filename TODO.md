@@ -20,7 +20,7 @@ Tick a box when a feature is done (clickable on GitHub).
 - [x] Able to put a GIF as the lock background (animated)
 - [ ] Able to put a video as the lock background
 - [ ] Add default theme packs (TechDom, PetDom, Mommy/Daddy, Master/Mistress, Brat Tamer, FinDom, etc.)
-- [ ] Add an import/export for settings and stats (backup, move to a new PC)
+- [x] Add an import/export for settings and stats (backup, move to a new PC)
 - [x] Add a `requirements.txt` with pinned versions
 - [x] Add screenshots or a short GIF of the overlay to the README
 - [x] Add GitHub issue templates (Bug report, Feedback)

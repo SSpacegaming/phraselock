@@ -10,6 +10,11 @@ Tick a box when a feature is done (clickable on GitHub).
 - [x] Add a panic hotkey or a "disable for X minutes" option that doesn't require the full challenge
 - [ ] Add a crash-loop guard: if the app or the watchdog fails several times in a row, it disables itself automatically
 - [x] Add a `LICENSE` file to the repo
+- [ ] 🆕 Add a first-launch setup wizard to guide users through their initial configuration
+- [ ] 🆕 Add a theme editor to create, rename, duplicate, and delete custom themes
+- [ ] Add default theme packs (TechDom, PetDom, Mommy/Daddy, Master/Mistress, Brat Tamer, FinDom, etc.)
+- [ ] 🆕 Add a "What's new?" window after updates
+- [ ] 🆕 Add a clear uninstall and cleanup process
 
 ## 🟠 Medium priority
 
@@ -19,7 +24,6 @@ Tick a box when a feature is done (clickable on GitHub).
 - [x] Option to show a different random picture on each screen instead of the same one everywhere
 - [x] Able to put a GIF as the lock background (animated)
 - [ ] Able to put a video as the lock background
-- [ ] Add default theme packs (TechDom, PetDom, Mommy/Daddy, Master/Mistress, Brat Tamer, FinDom, etc.)
 - [x] Add an import/export for settings and stats (backup, move to a new PC)
 - [x] Add a `requirements.txt` with pinned versions
 - [x] Add screenshots or a short GIF of the overlay to the README
@@ -27,9 +31,22 @@ Tick a box when a feature is done (clickable on GitHub).
 - [ ] Add more unit tests, especially for `phrases.py` (CSV, JSON and TXT parsing) and `config.py`
 - [ ] Add an update checker that compares the installed version with the latest GitHub release
 - [ ] Add an exit option on the tray
+- [ ] 🆕 Add text positioning controls (top, center, bottom, or custom position)
+- [ ] 🆕 Add an optional progress bar showing how much of the phrase has been typed correctly
+- [ ] 🆕 Add a choice between resetting the whole phrase or keeping the correctly typed portion after a mistake
+- [ ] 🆕 Add multiple configuration profiles (Work, Gaming, Streaming, Sleep, etc.)
+- [ ] 🆕 Add one-click profile switching from the system tray
+- [ ] 🆕 Add a "Reset to defaults" button with a confirmation dialog
+- [ ] 🆕 Add a local API or plugin system for third-party integrations (Discord integration?)
 
 ## 🟢 Low priority
 
+- [ ] 🆕 Add drag-and-drop support for importing images, videos, audio, and phrase files
+- [ ] 🆕 Add a schedule to activate specific profiles at certain times
+- [ ] 🆕 Add a button to open the configuration folder
+- [ ] 🆕 Add a button to open the current log file
+- [ ] 🆕 Add keyboard shortcuts for common actions
+- [ ] 🆕 Add a privacy section explaining what data PhraseLock stores locally
 - [ ] Add a bug report feature ("bug found")
 - [ ] Add a feedback feature
 - [ ] Add a repo description and topics (the About box is empty)

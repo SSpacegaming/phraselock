@@ -1,0 +1,29 @@
+diff --git a/README.md b/README.md
+index ce1a782..067e6b9 100644
+--- a/README.md
++++ b/README.md
+@@ -7,2 +7,3 @@
+ - **Emergency recovery** — configure an emergency password before using protection features.
++- **Backup and transfer** — export your settings and stats to one file and import it on another PC.
+ - **Windows executable** — get started without manually running the Python source code.
+@@ -15,2 +16,16 @@ For TXT files, use the format expected by the phrase loader in the source code.
+ 
++## 💾 Backup and moving to a new PC
++
++Settings and stats can be saved to a single JSON file, for a backup or to move PhraseLock to a new PC.
++
++**Export:** open Settings and click **EXPORT**, then choose where to save the file. You can include the emergency password (stored as a salted hash) or leave it out, for example if you plan to share the file. The export contains your current settings, your unlock history and your streak, daily goal and XP.
++
++**Import:** on the new PC, open Settings and click **IMPORT**, then pick the backup file. PhraseLock shows what it contains and asks for confirmation. The current settings and stats are replaced, and the old files are kept next to them in `%APPDATA%\PhraseLock` as `.bak` copies. The Settings window then closes; reopen it to see the imported values.
++
++Things to know:
++
++- Phrase files, background images and sounds are stored as paths only. Copy those files to the new PC yourself; PhraseLock warns you about paths that are missing after an import.
++- Settings that are missing or invalid in the file are ignored, and a backup made by a newer version is refused.
++- Keep the backup private, only import files you trust, and test your emergency password after moving.
++
+ ## 🛡️ Safety and recovery
+@@ -26,2 +41,3 @@ PhraseLock can interact with Windows session locking.
+ | `stats.py`              | Progress and statistics              |
++| `backup.py`             | Settings and stats export/import     |
+ | `session.py`            | Session and protection logic         |

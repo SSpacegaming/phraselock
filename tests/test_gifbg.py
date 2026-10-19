@@ -140,69 +140,91 @@ class FakeClock:
     def __init__(self):
         self.now = 0.0
 
+    def advance_ms(self, ms):
+        self.now += ms / 1000.0
+
     def __call__(self):
         return self.now
 
 
 class AnimatorTests(unittest.TestCase):
     def setUp(self):
-        self.scheduled = []        # (ms, fn)
+        self.scheduled = []        # wait in ms, one entry per schedule() call
+        self.callbacks = []
         self.cancelled = []
         self.shown = []
         self.clock = FakeClock()
 
     def schedule(self, ms, fn):
-        handle = len(self.scheduled)
-        self.scheduled.append((ms, fn))
-        return handle
+        self.scheduled.append(ms)
+        self.callbacks.append(fn)
+        return len(self.scheduled) - 1
 
-    def run_next(self):
-        ms, fn = self.scheduled[-1]
-        fn()
+    def fire(self, after_ms):
+        """Let *after_ms* pass, then run the callback that was scheduled last."""
+        self.clock.advance_ms(after_ms)
+        self.callbacks[-1]()
 
-    def make(self, delays, show=None):
+    def make(self, delays, show=None, **kwargs):
         return gifbg.Animator(delays, show or self.shown.append, self.schedule,
-                              self.cancelled.append, clock=self.clock)
+                              self.cancelled.append, clock=self.clock, **kwargs)
+
+    def test_first_wait_is_the_first_frames_delay(self):
+        a = self.make([100, 200, 300])
+        a.start()
+        self.assertEqual(self.scheduled, [100])            # frame 0 is already on screen
 
     def test_frames_advance_in_order_and_wrap_around(self):
+        a = self.make([100, 100, 100])
+        a.start()
+        for _ in range(5):
+            self.fire(self.scheduled[-1])
+        self.assertEqual(self.shown, [1, 2, 0, 1, 2])
+
+    def test_each_wait_runs_to_the_end_of_the_current_frame(self):
         a = self.make([100, 200, 300])
         a.start()
-        self.assertEqual(self.scheduled[-1][0], 100)       # frame 0 is already on screen
-        for _ in range(4):
-            self.run_next()
-        self.assertEqual(self.shown, [1, 2, 0, 1])
+        self.fire(100)                                     # frame 1 shown at t=100
+        self.assertEqual(self.scheduled[-1], 200)
+        self.fire(200)                                     # frame 2 shown at t=300
+        self.assertEqual(self.scheduled[-1], 300)
 
-    def test_each_delay_is_the_new_frames_own_delay(self):
-        a = self.make([100, 200, 300])
-        a.start()
-        self.run_next()                                    # now showing frame 1
-        self.assertEqual(self.scheduled[-1][0], 200)
-        self.run_next()                                    # frame 2
-        self.assertEqual(self.scheduled[-1][0], 300)
-
-    def test_drawing_time_is_taken_off_the_next_delay(self):
+    def test_drawing_time_does_not_stretch_the_animation(self):
         def slow(_i):
-            self.clock.now += 0.06                         # drawing took 60 ms
+            self.clock.advance_ms(60)                      # drawing took 60 ms
         a = self.make([100, 100], show=slow)
         a.start()
-        self.run_next()
-        self.assertEqual(self.scheduled[-1][0], 40)
+        self.fire(100)                                     # frame 1 shown, now t=160
+        self.assertEqual(self.scheduled[-1], 40)           # wait for t=200, not 100 more
 
-    def test_delay_never_drops_below_one_millisecond(self):
-        def very_slow(_i):
-            self.clock.now += 5.0
-        a = self.make([100, 100], show=very_slow)
+    def test_when_behind_old_frames_are_skipped(self):
+        calls = []
+
+        def very_slow(i):
+            calls.append(i)
+            self.clock.advance_ms(250)                     # drawing is slower than the GIF
+        a = self.make([100] * 5, show=very_slow)
         a.start()
-        self.run_next()
-        self.assertEqual(self.scheduled[-1][0], 1)
+        self.fire(100)                                     # t=100: frame 1, done at t=350
+        self.assertEqual(self.scheduled[-1], gifbg.Animator.MIN_GAP_MS)
+        self.fire(gifbg.Animator.MIN_GAP_MS)               # t=358: frame 3 is due, 2 is skipped
+        self.assertEqual(calls, [1, 3])
+
+    def test_a_timer_that_fires_early_does_not_redraw_the_same_frame(self):
+        a = self.make([100, 100])
+        a.start()
+        self.fire(60)                                      # still frame 0
+        self.assertEqual(self.shown, [])
+        self.assertEqual(self.scheduled[-1], 40)           # wait for the real boundary
 
     def test_stop_cancels_and_late_callbacks_do_nothing(self):
         a = self.make([100, 100])
         a.start()
-        pending = self.scheduled[-1][1]
+        pending = self.callbacks[-1]
         a.stop()
         self.assertEqual(len(self.cancelled), 1)
         before = len(self.scheduled)
+        self.clock.advance_ms(100)
         pending()
         self.assertEqual(self.shown, [])
         self.assertEqual(len(self.scheduled), before)
@@ -218,17 +240,89 @@ class AnimatorTests(unittest.TestCase):
             raise RuntimeError("window is gone")
         a = self.make([100, 100], show=boom)
         a.start()
-        self.run_next()
+        self.fire(100)
         self.assertFalse(a.running)
         self.assertEqual(len(self.scheduled), 1)           # nothing new was scheduled
 
-    def test_can_restart_after_stop(self):
+    def test_restart_begins_again_at_frame_zero(self):
         a = self.make([100, 100])
         a.start()
+        self.fire(100)
         a.stop()
         a.start()
         self.assertTrue(a.running)
-        self.assertEqual(len(self.scheduled), 2)
+        self.assertEqual(a.index, 0)
+        self.assertEqual(self.scheduled[-1], 100)
+
+    def test_one_show_call_can_draw_several_screens_in_step(self):
+        screens = {"a": [], "b": [], "c": []}
+
+        def draw_all(i):
+            for log_ in screens.values():
+                log_.append(i)
+        a = self.make([100, 100, 100], show=draw_all)
+        a.start()
+        for _ in range(4):
+            self.fire(self.scheduled[-1])
+        self.assertEqual(screens["a"], screens["b"])
+        self.assertEqual(screens["b"], screens["c"])
+        self.assertEqual(screens["a"], [1, 2, 0, 1])
+
+    def test_slow_drawing_is_reported_once(self):
+        reports = []
+
+        def slow(_i):
+            self.clock.advance_ms(30)
+        a = self.make([20] * 50, show=slow, on_slow=lambda draw, delay: reports.append((draw, delay)))
+        a.start()
+        for _ in range(60):
+            self.fire(self.scheduled[-1])
+        self.assertEqual(len(reports), 1)
+        self.assertGreater(reports[0][0], reports[0][1])
+
+    def test_fast_drawing_is_not_reported(self):
+        reports = []
+        a = self.make([100] * 50, on_slow=lambda *args: reports.append(args))
+        a.start()
+        for _ in range(40):
+            self.fire(self.scheduled[-1])
+        self.assertEqual(reports, [])
+
+    def test_frame_at_uses_the_cycle_position(self):
+        a = self.make([100, 200, 300])
+        self.assertEqual([a.frame_at(ms) for ms in (0, 99, 100, 299, 300, 599, 600, 700)],
+                         [0, 0, 1, 1, 2, 2, 0, 1])
+
+
+class ScanlineTests(unittest.TestCase):
+    def reference(self, img):
+        """The way the overlay used to draw them: one line per 6 rows."""
+        from PIL import ImageDraw
+        out = img.convert("RGBA")
+        draw = ImageDraw.Draw(out)
+        for y in range(0, img.size[1], 6):
+            draw.line((0, y, img.size[0], y), fill=(10, 10, 16, 42), width=1)
+        return out.convert("RGB")
+
+    def test_same_picture_as_drawing_the_lines_one_by_one(self):
+        for size in ((50, 30), (64, 37), (7, 5)):
+            img = Image.effect_noise(size, 60).convert("RGB")
+            expected = self.reference(img)
+            got = gifbg.apply_scanlines(img.copy())
+            self.assertEqual(list(got.getdata()), list(expected.getdata()), size)
+
+    def test_rgba_images_get_the_same_rgb_result(self):
+        img = Image.effect_noise((40, 20), 60).convert("RGB")
+        expected = self.reference(img)
+        got = gifbg.apply_scanlines(img.convert("RGBA")).convert("RGB")
+        self.assertEqual(list(got.getdata()), list(expected.getdata()))
+
+    def test_it_changes_the_image_in_place_and_returns_it(self):
+        img = Image.new("RGB", (10, 12), (200, 200, 200))
+        self.assertIs(gifbg.apply_scanlines(img), img)
+        self.assertEqual(img.getpixel((3, 0)), (10, 10, 16))
+        self.assertEqual(img.getpixel((3, 1)), (200, 200, 200))
+        self.assertEqual(img.getpixel((3, 6)), (10, 10, 16))
 
 
 if __name__ == "__main__":

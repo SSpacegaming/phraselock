@@ -5,6 +5,7 @@ frames within a memory budget, and drives the "next frame" timing through a
 scheduler that is passed in (Tk's root.after in the app, a fake in the tests).
 """
 
+import bisect
 import math
 import os
 import time
@@ -120,30 +121,87 @@ def get_gif_frames(path):
     return frames
 
 
+_SCANLINE_MASKS = {}
+SCANLINE_COLOR = (10, 10, 16)
+
+
+def apply_scanlines(img, color=SCANLINE_COLOR):
+    """Draw the dark scanlines (every 6th row) on *img* in place and return it.
+
+    Same picture as drawing each line separately, but one fast paste through a
+    mask that is built once per screen size.
+    """
+    from PIL import Image
+    key = img.size
+    mask = _SCANLINE_MASKS.get(key)
+    if mask is None:
+        w, h = key
+        mask = Image.new("L", key, 0)
+        mask.paste(255, (0, 0, w, 1))
+        strip = Image.new("L", (w, 6), 0)
+        strip.paste(255, (0, 0, w, 1))
+        for y in range(0, h, 6):
+            mask.paste(strip, (0, y))
+        _SCANLINE_MASKS.clear()          # keep only the size(s) in use
+        _SCANLINE_MASKS[key] = mask
+    fill = tuple(color) + ((42,) if img.mode == "RGBA" else ())
+    img.paste(fill, (0, 0), mask)
+    return img
+
+
 class Animator:
-    """Calls show(index) for each next frame, on the GIF's own timing.
+    """Plays one GIF on the wall clock: show(index) draws the frame that is due.
+
+    One Animator drives every screen that shows the same GIF (show draws them
+    all), so the screens stay in step. When drawing is slower than the GIF, the
+    frames that are already over are skipped instead of queuing up, so the
+    animation keeps its speed and the lock screen stays responsive.
 
     schedule(ms, fn) must run fn once after ms milliseconds and return a handle;
-    cancel(handle) is optional. Time spent drawing a frame is subtracted from the
-    next delay, and a frame that raises (for example because the window is gone)
-    stops the animation instead of repeating the error.
+    cancel(handle) is optional. A frame that raises (for example because the
+    window is gone) stops the animation instead of repeating the error. on_slow
+    is called once, with (average draw ms, average GIF frame ms), when drawing a
+    frame takes longer on average than the GIF's own frame time.
     """
 
-    def __init__(self, delays, show, schedule, cancel=None, clock=time.monotonic):
+    MIN_GAP_MS = 8          # breathing room for the UI when we are running behind
+    SLOW_CHECK_AFTER = 20   # frames drawn before judging the speed
+
+    def __init__(self, delays, show, schedule, cancel=None, clock=time.monotonic, on_slow=None):
         self.delays = list(delays) or [DEFAULT_DELAY_MS]
         self.show = show
         self.schedule = schedule
         self.cancel = cancel
         self.clock = clock
+        self.on_slow = on_slow
         self.index = 0
         self.running = False
         self._handle = None
+        self._t0 = 0.0
+        self._ends = []
+        total = 0
+        for d in self.delays:
+            total += d
+            self._ends.append(total)
+        self.total_ms = total
+        self._drawn = 0
+        self._draw_ms = 0.0
+        self._slow_reported = False
+
+    def frame_at(self, ms):
+        """Index of the frame that is due *ms* milliseconds after the start."""
+        return min(bisect.bisect_right(self._ends, ms % self.total_ms), len(self.delays) - 1)
+
+    def _now_ms(self):
+        return (self.clock() - self._t0) * 1000.0
 
     def start(self):
         if self.running:
             return
         self.running = True
-        self._handle = self.schedule(self.delays[self.index], self._tick)
+        self.index = 0                       # frame 0 is already on screen
+        self._t0 = self.clock()
+        self._handle = self.schedule(self._ends[0], self._tick)
 
     def stop(self):
         self.running = False
@@ -157,13 +215,35 @@ class Animator:
     def _tick(self):
         if not self.running:
             return
-        self.index = (self.index + 1) % len(self.delays)
-        started = self.clock()
-        try:
-            self.show(self.index)
-        except Exception:
-            self.running = False
-            self._handle = None
-            return
-        spent = int((self.clock() - started) * 1000)
-        self._handle = self.schedule(max(1, self.delays[self.index] - spent), self._tick)
+        target = self.frame_at(self._now_ms())
+        if target != self.index:
+            started = self.clock()
+            try:
+                self.show(target)
+            except Exception:
+                self.running = False
+                self._handle = None
+                return
+            self.index = target
+            self._note_draw((self.clock() - started) * 1000.0)
+        pos = self._now_ms() % self.total_ms
+        due = self.frame_at(pos)
+        if due != self.index:                # still behind: draw the current frame next
+            wait = self.MIN_GAP_MS
+        else:
+            wait = max(1, math.ceil(self._ends[due] - pos))
+        self._handle = self.schedule(wait, self._tick)
+
+    def _note_draw(self, ms):
+        self._drawn += 1
+        self._draw_ms += ms
+        if (self._drawn == self.SLOW_CHECK_AFTER and not self._slow_reported
+                and self.on_slow is not None):
+            avg_draw = self._draw_ms / self._drawn
+            avg_delay = self.total_ms / len(self.delays)
+            if avg_draw > avg_delay:
+                self._slow_reported = True
+                try:
+                    self.on_slow(avg_draw, avg_delay)
+                except Exception:
+                    pass

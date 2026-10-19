@@ -15,6 +15,7 @@ and this project follows [Semantic Versioning](https://semver.org/).
   overlay costs no CPU. Transparent pixels show the dark background colour.
 - New setting `animate_gif_backgrounds` (checkbox *Play animated GIF backgrounds* in the
   *Look* tab, on by default). Off = first frame only, like before.
+- Several screens stay in step: one clock drives every screen that shows the same GIF, frames are skipped (never queued) when drawing is slower than the GIF, and same-size screens share the work. A note in `phraselock.log` says when the PC is too slow for the GIF.
 - Very large GIFs are shrunk and/or cut (max 240 frames, about 96 MB decoded per GIF) so
   they cannot use up the memory; a GIF that does not fit is shown as a still picture.
 - New module `gifbg.py` with unit tests (`tests/test_gifbg.py`).

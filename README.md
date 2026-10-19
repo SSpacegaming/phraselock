@@ -15,7 +15,7 @@ Customize your phrases, choose a visual theme, track your progress, and make eac
 - **Customizable settings** — configure the experience to suit your preferences.
 - **Progress tracking** — features in the source include streaks, daily goals, XP, levels, and badges.
 - **Phrase libraries** — support for external TXT, CSV, and JSON phrase collections.
-- **Visual customization** — themes, backgrounds, interface scaling, and visual effects are available in the project.
+- **Visual customization** — themes, backgrounds (including animated GIFs), interface scaling, and visual effects are available in the project.
 - **Several background images** — add as many pictures as you like; one is picked at random each time the lock appears, optionally a different one on each screen.
 - **Multi-screen support** — lock the primary screen, any screen, several screens, or all of them.
 - **Emergency recovery** — configure an emergency password before using protection features.
@@ -166,6 +166,7 @@ Running the tests before building helps identify problems in the project's teste
 | `overlay.py`            | Challenge overlay                    |
 | `monitors.py`           | Monitor detection and screen choice  |
 | `media.py`              | Media and audio functionality        |
+| `gifbg.py`              | Animated GIF background decoding and timing |
 | `PhraseLockWatchdog.py` | Optional watchdog functionality      |
 | `tray.py`               | System tray status icon              |
 | `appicon.py`            | Shared application icon helpers      |

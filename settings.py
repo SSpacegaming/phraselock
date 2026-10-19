@@ -457,6 +457,12 @@ def main():
                        variable=bg_per_screen_var), pady=(0, 2))
     note(t_look, "Only matters when several screens are locked. Each screen gets its own picture "
                  "when there are enough images; otherwise some pictures are reused.", size=8)
+    animate_gif_var = tk.BooleanVar(value=bool(cfg.get("animate_gif_backgrounds", True)))
+    pad(tk.Checkbutton(t_look, text="Play animated GIF backgrounds",
+                       variable=animate_gif_var), pady=(0, 2))
+    note(t_look, "Add a .gif file or a direct .gif URL to the background list above. While the lock "
+                 "is showing, the GIF plays on every locked screen. Turn this off to show only its "
+                 "first frame (uses less CPU). Very large GIFs are shrunk or cut to save memory.", size=8)
     bg_mode_var = tk.StringVar(value=str(cfg.get("background_mode", "fill")).capitalize())
     pad(tk.Label(t_look, text="Image display mode (default for all screens):"), pady=(0, 3))
     pad(tk.OptionMenu(t_look, bg_mode_var, "Fill", "Fit", "Stretch", "Center", "Tile"), pady=(0, 4))
@@ -1013,6 +1019,7 @@ def main():
             "background_image": bg_list[0] if bg_list else "",
             "background_mode": bg_mode_var.get().lower(),
             "background_per_screen": bg_per_screen_var.get(),
+            "animate_gif_backgrounds": animate_gif_var.get(),
             "screen_background_modes": collect_screen_modes(),
             "lock_screens": collect_lock_screens(),
             "panel_color": panel_color_var.get().strip() or DEFAULT_CONFIG["panel_color"],
@@ -1142,7 +1149,7 @@ def main():
     watched_vars = [
         enabled_var, title_var, phrases_file_var, difficulty_var, theme_var, font_var,
         ui_scale_var, scanlines_var, glow_var, glitch_var, bg_images_var, bg_mode_var,
-        all_screens_var, *screen_vars.values(), bg_per_screen_var, *mode_vars.values(), panel_color_var, panel_opacity_var, play_sound_var, sound_error_var,
+        all_screens_var, *screen_vars.values(), bg_per_screen_var, animate_gif_var, *mode_vars.values(), panel_color_var, panel_opacity_var, play_sound_var, sound_error_var,
         success_sound_var, error_sound_var, repeats_var, reset_on_error_var,
         strict_mode_var, weighting_var, disable_paste_var, case_insensitive_var,
         min_delay_var, max_attempts_var, lockout_seconds_var, daily_goal_var,

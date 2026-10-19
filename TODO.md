@@ -17,7 +17,8 @@ Tick a box when a feature is done (clickable on GitHub).
 - [x] Able to choose multiple pictures and display them randomly
 - [x] Choose the image display mode (fill, fit, stretch, center, tile) for each screen
 - [x] Option to show a different random picture on each screen instead of the same one everywhere
-- [ ] Able to put a GIF or video as the lock background
+- [x] Able to put a GIF as the lock background (animated)
+- [ ] Able to put a video as the lock background
 - [ ] Add default theme packs (TechDom, PetDom, Mommy/Daddy, Master/Mistress, Brat Tamer, FinDom, etc.)
 - [ ] Add an import/export for settings and stats (backup, move to a new PC)
 - [x] Add a `requirements.txt` with pinned versions

@@ -8,6 +8,16 @@ and this project follows [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **Animated GIF backgrounds.** A `.gif` in the background list (local file or direct
+  URL) now plays on the lock screen instead of showing only its first frame, on the main
+  screen (behind the phrase panel) and on every extra locked screen. Frame timing follows
+  the GIF; the animation only runs while the lock is showing, so the hidden standby
+  overlay costs no CPU. Transparent pixels show the dark background colour.
+- New setting `animate_gif_backgrounds` (checkbox *Play animated GIF backgrounds* in the
+  *Look* tab, on by default). Off = first frame only, like before.
+- Very large GIFs are shrunk and/or cut (max 240 frames, about 96 MB decoded per GIF) so
+  they cannot use up the memory; a GIF that does not fit is shown as a still picture.
+- New module `gifbg.py` with unit tests (`tests/test_gifbg.py`).
 - **Image display mode per screen.** Next to each monitor in the *Look* tab, an *Image
   mode* menu sets how the background fits that screen (Default, Fill, Fit, Stretch,
   Center, Tile). *Default* uses the global *Image display mode*.

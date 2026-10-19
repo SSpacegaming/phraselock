@@ -37,6 +37,7 @@ DEFAULT_CONFIG = {
     "background_mode": "fill",   # fill | fit | stretch | center | tile (default for all screens)
     "screen_background_modes": {},  # per-screen override: {display name: mode}
     "background_per_screen": False, # True: a different random image on each locked screen
+    "animate_gif_backgrounds": True, # True: animated GIFs play on the lock screen; False: first frame only
     "lock_screens": ["primary"], # "primary", "all", or Windows display names (see monitors.py)
     "panel_color": "#1a1a2e",
     "panel_opacity": 100,

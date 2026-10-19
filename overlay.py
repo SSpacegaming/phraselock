@@ -20,6 +20,7 @@ from config import (
     load_config, log, self_command,
 )
 from media import play_audio, _remote_media_cache, pick_backgrounds
+import gifbg
 from stats import (
     get_progress, get_streak, get_xp_level,
     record_stat, update_streak, add_progress, verify_emergency_password,
@@ -87,14 +88,17 @@ def _place_on_monitor(root, mon):
     root.attributes("-topmost", True)
 
 
-def _build_covers(root, cover_mons, cover_paths, cfg, scanlines, preview, visible):
+def _build_covers(root, cover_mons, cover_paths, cfg, scanlines, preview, visible, animators=None):
     """Create one borderless cover window per extra locked screen.
 
     Each cover shows its background image (fitted to its own monitor, with that
     screen's display mode) but no phrase panel. Returns the list of Toplevel windows. A failure on one
     screen is logged and does not stop the lock from appearing on the others.
+    An animated GIF background gets a gifbg.Animator, appended to *animators*
+    (not started: the caller starts it when the lock is shown).
     """
     covers = []
+    animate = bool(cfg.get("animate_gif_backgrounds", True))
     for idx, m in enumerate(cover_mons):
         bg_image_path = cover_paths[idx] if idx < len(cover_paths) else ""
         bg_mode = background_mode_for(cfg, m)
@@ -106,22 +110,34 @@ def _build_covers(root, cover_mons, cover_paths, cfg, scanlines, preview, visibl
             top.configure(bg="#111111")
             try:
                 from PIL import Image, ImageTk, ImageColor, ImageDraw
-                img = None
-                if bg_image_path and os.path.isfile(bg_image_path):
+                gif = gifbg.get_gif_frames(bg_image_path) if animate else None
+
+                def draw_cover(src, m=m, bg_mode=bg_mode, fast=None):
+                    img = fit_background(src, m["w"], m["h"], bg_mode, resample=fast)
+                    if scanlines:
+                        img = img.convert("RGBA")
+                        line_draw = ImageDraw.Draw(img)
+                        for yy in range(0, m["h"], 6):
+                            line_draw.line((0, yy, m["w"], yy), fill=(10, 10, 16, 42), width=1)
+                        img = img.convert("RGB")
+                    return img
+
+                if gif:
+                    img = draw_cover(gif.frames[0], fast=Image.Resampling.BILINEAR)
+                elif bg_image_path and os.path.isfile(bg_image_path):
                     with Image.open(bg_image_path) as src:
-                        img = fit_background(src, m["w"], m["h"], bg_mode)
-                if img is None:
-                    img = Image.new("RGB", (m["w"], m["h"]), "#111111")
-                if scanlines:
-                    img = img.convert("RGBA")
-                    line_draw = ImageDraw.Draw(img)
-                    for yy in range(0, m["h"], 6):
-                        line_draw.line((0, yy, m["w"], yy), fill=(10, 10, 16, 42), width=1)
-                    img = img.convert("RGB")
+                        img = draw_cover(src)
+                else:
+                    img = draw_cover(Image.new("RGB", (m["w"], m["h"]), "#111111"))
                 photo = ImageTk.PhotoImage(img, master=top)
                 label = tk.Label(top, image=photo, bd=0, highlightthickness=0)
                 label.image = photo
                 label.place(x=0, y=0, relwidth=1, relheight=1)
+                if gif and animators is not None:
+                    def show_cover_frame(i, gif=gif, photo=photo, draw_cover=draw_cover):
+                        photo.paste(draw_cover(gif.frames[i], fast=Image.Resampling.BILINEAR))
+                    animators.append(gifbg.Animator(gif.delays, show_cover_frame,
+                                                    top.after, top.after_cancel))
             except Exception:
                 log("Cover background failed, using a solid colour:\n" + traceback.format_exc())
             if preview:
@@ -142,7 +158,7 @@ def _pick_and_remember(items, previous=None, cfg=None):
     return text
 
 
-def fit_background(img, screen_w, screen_h, mode="fill", bg_color="#111111"):
+def fit_background(img, screen_w, screen_h, mode="fill", bg_color="#111111", resample=None):
     """Return an RGB image of exactly screen_w x screen_h.
 
     fill    - scale to cover the screen, keep aspect ratio, crop the overflow
@@ -163,7 +179,7 @@ def fit_background(img, screen_w, screen_h, mode="fill", bg_color="#111111"):
         pass
     img = img.convert("RGB")
     iw, ih = img.size
-    resample = Image.Resampling.LANCZOS
+    resample = resample or Image.Resampling.LANCZOS   # animated GIFs pass a faster filter
 
     # Degenerate sizes: tiling a 2px image would take forever.
     if mode == "tile" and (iw < 16 or ih < 16):
@@ -339,8 +355,10 @@ def show_overlay(cfg, phrase_items, record_stats=True, preview=False, standby=No
 
     screen_w = mon["w"] if mon else root.winfo_screenwidth()
     screen_h = mon["h"] if mon else root.winfo_screenheight()
+    gifbg.clear_cache()
+    animators = []
     covers = _build_covers(root, cover_mons, bg_paths[1:], cfg, scanlines,
-                           preview, visible=(standby is None))
+                           preview, visible=(standby is None), animators=animators)
 
     try:
         from PIL import Image, ImageTk, ImageColor, ImageDraw
@@ -350,7 +368,18 @@ def show_overlay(cfg, phrase_items, record_stats=True, preview=False, standby=No
         Image = ImageTk = ImageColor = ImageDraw = None
 
     bg_pil = None
-    if pil_available and bg_image_path and os.path.isfile(bg_image_path):
+    gif = None
+    fast = Image.Resampling.BILINEAR if pil_available else None
+    if pil_available and cfg.get("animate_gif_backgrounds", True):
+        gif = gifbg.get_gif_frames(bg_image_path)
+    if gif:
+        try:
+            bg_pil = fit_background(gif.frames[0], screen_w, screen_h, bg_mode, resample=fast)
+            log(f"Animated GIF background: {len(gif)} frames, mode={bg_mode} file={bg_image_path}")
+        except Exception:
+            log("Could not load the GIF background:\n" + traceback.format_exc())
+            gif = None
+    elif pil_available and bg_image_path and os.path.isfile(bg_image_path):
         try:
             with Image.open(bg_image_path) as src:
                 bg_pil = fit_background(src, screen_w, screen_h, bg_mode)
@@ -374,23 +403,28 @@ def show_overlay(cfg, phrase_items, record_stats=True, preview=False, standby=No
     panel_y = max(0, (screen_h - panel_h) // 2)
     panel_rect_color = ImageColor.getrgb(panel_color) if pil_available else (26, 26, 46)
 
-    composed = None
-    if pil_available and bg_pil is not None:
+    def compose_screen(background):
+        """Background + rounded phrase panel (+ scanlines), as an RGBA image."""
         overlay_img = Image.new("RGBA", (panel_w, panel_h), panel_rect_color + (int(panel_opacity * 255),))
         mask = Image.new("L", (panel_w, panel_h), 0)
         draw = ImageDraw.Draw(mask)
         draw.rounded_rectangle((0, 0, panel_w - 1, panel_h - 1), radius=8, fill=255)
-        composed = bg_pil.convert("RGBA")
-        composed.alpha_composite(overlay_img, (panel_x, panel_y))
-        crop = composed.crop((panel_x, panel_y, panel_x + panel_w, panel_y + panel_h))
-        original_crop = bg_pil.convert("RGBA").crop((panel_x, panel_y, panel_x + panel_w, panel_y + panel_h))
+        result = background.convert("RGBA")
+        result.alpha_composite(overlay_img, (panel_x, panel_y))
+        crop = result.crop((panel_x, panel_y, panel_x + panel_w, panel_y + panel_h))
+        original_crop = background.convert("RGBA").crop((panel_x, panel_y, panel_x + panel_w, panel_y + panel_h))
         crop.putalpha(mask)
         original_crop.alpha_composite(crop)
-        composed.paste(original_crop, (panel_x, panel_y))
+        result.paste(original_crop, (panel_x, panel_y))
         if scanlines:
-            line_draw = ImageDraw.Draw(composed)
+            line_draw = ImageDraw.Draw(result)
             for yy in range(0, screen_h, 6):
                 line_draw.line((0, yy, screen_w, yy), fill=(10, 10, 16, 42), width=1)
+        return result
+
+    composed = None
+    if pil_available and bg_pil is not None:
+        composed = compose_screen(bg_pil)
         bg_photo = ImageTk.PhotoImage(composed.convert("RGB"), master=root)
         bg_label = tk.Label(root, image=bg_photo, bd=0, highlightthickness=0)
         bg_label.image = bg_photo
@@ -407,6 +441,13 @@ def show_overlay(cfg, phrase_items, record_stats=True, preview=False, standby=No
         content.place(x=panel_x, y=panel_y)
         content.create_image(0, 0, image=panel_photo, anchor="nw")
         content._panel_photo = panel_photo
+        if gif:
+            def show_gif_frame(i):
+                frame = fit_background(gif.frames[i], screen_w, screen_h, bg_mode, resample=fast)
+                comp = compose_screen(frame)
+                bg_photo.paste(comp.convert("RGB"))
+                panel_photo.paste(comp.crop((panel_x, panel_y, panel_x + panel_w, panel_y + panel_h)).convert("RGB"))
+            animators.append(gifbg.Animator(gif.delays, show_gif_frame, root.after, root.after_cancel))
     else:
         content = tk.Canvas(root, width=panel_w, height=panel_h, bd=0,
                             highlightthickness=0, relief="flat", bg=panel_color)
@@ -744,6 +785,8 @@ def show_overlay(cfg, phrase_items, record_stats=True, preview=False, standby=No
 
     if standby is None:
         keep_on_top()
+        for a in animators:
+            a.start()
         if not preview:
             root.grab_set()
         root.mainloop()
@@ -797,6 +840,8 @@ def show_overlay(cfg, phrase_items, record_stats=True, preview=False, standby=No
         entry.focus_force()
         root.grab_set()
         keep_on_top()
+        for a in animators:   # GIFs only play while the lock is actually showing
+            a.start()
         return True
 
     def poll_trigger():

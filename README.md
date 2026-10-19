@@ -16,6 +16,7 @@ Customize your phrases, choose a visual theme, track your progress, and make eac
 - **Progress tracking** — features in the source include streaks, daily goals, XP, levels, and badges.
 - **Phrase libraries** — support for external TXT, CSV, and JSON phrase collections.
 - **Visual customization** — themes, backgrounds, interface scaling, and visual effects are available in the project.
+- **Several background images** — add as many pictures as you like; one is picked at random each time the lock appears, optionally a different one on each screen.
 - **Multi-screen support** — lock the primary screen, any screen, several screens, or all of them.
 - **Emergency recovery** — configure an emergency password before using protection features.
 - **System tray icon** — see at a glance that PhraseLock is running; open the settings from the tray.
@@ -67,6 +68,11 @@ In the **Look** tab, under **Show the lock on**, tick the monitors that should b
 - **All screens** — every monitor is covered, including monitors you plug in later.
 
 The phrase panel (where you type) appears on the primary screen, or on the left-most ticked screen if the primary is not ticked. The other ticked screens show the background image without the panel. The default is the primary screen only.
+
+Backgrounds on several screens:
+
+- **Image mode per screen** — next to each monitor, the *Image mode* menu chooses how the background fits that screen (Fill, Fit, Stretch, Center, Tile). *Default* follows the global *Image display mode*, which is handy when your monitors have different sizes or orientations.
+- **Different picture per screen** — tick *Show a different random picture on each screen* (in the background images section) so every locked screen gets its own random image. With fewer images than screens, some pictures are reused. Left unticked, all screens show the same picture.
 
 If a ticked monitor is unplugged, it is skipped; if none of the ticked monitors is available, the primary screen is used. Your choice is kept and applies again when the monitor is back.
 

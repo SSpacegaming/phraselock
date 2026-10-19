@@ -17,6 +17,7 @@ from appicon import apply_window_icon
 
 import phrase_lock
 import monitors
+import media
 
 CONFIG_DIR = phrase_lock.CONFIG_DIR
 CONFIG_PATH = phrase_lock.CONFIG_PATH
@@ -391,31 +392,73 @@ def main():
     pad(tk.Checkbutton(t_look, text="Glitch effect on errors", variable=glitch_var), pady=(0, 6))
 
     heading(t_look, "[02] BACKGROUND / PANEL")
-    pad(tk.Label(t_look, text="Background image (optional - local file OR direct HTTP/HTTPS URL):"))
-    bg_image_var = tk.StringVar(value=cfg.get("background_image", ""))
+    pad(tk.Label(t_look, text="Background images (optional - local files OR direct HTTP/HTTPS URLs):"))
+    bg_list = list(media.background_sources(cfg))
+    # Mirrors the list so that the autosave notices every change.
+    bg_images_var = tk.StringVar(value="\n".join(bg_list))
     bg_frame = tk.Frame(t_look)
     bg_frame.pack(anchor="w", padx=20, pady=(0, 5), fill="x")
-    tk.Entry(bg_frame, textvariable=bg_image_var, width=52).pack(side="left")
+    bg_listbox = tk.Listbox(bg_frame, height=5, width=60, selectmode="extended", exportselection=False)
+    bg_scroll = tk.Scrollbar(bg_frame, orient="vertical", command=bg_listbox.yview)
+    bg_listbox.configure(yscrollcommand=bg_scroll.set)
+    bg_listbox.pack(side="left")
+    bg_scroll.pack(side="left", fill="y")
 
-    def choose_image():
-        path = filedialog.askopenfilename(
-            title="Choose a background image",
+    def refresh_bg_list():
+        bg_listbox.delete(0, "end")
+        for item in bg_list:
+            bg_listbox.insert("end", item)
+        bg_images_var.set("\n".join(bg_list))
+
+    def add_bg(items):
+        changed = False
+        for item in items:
+            item = str(item).strip()
+            if item and item not in bg_list:
+                bg_list.append(item)
+                changed = True
+        if changed:
+            refresh_bg_list()
+
+    def choose_images():
+        paths = filedialog.askopenfilenames(
+            title="Choose background images",
             filetypes=[("Images", "*.png *.jpg *.jpeg *.bmp *.gif"), ("All files", "*.*")],
         )
-        if path:
-            bg_image_var.set(path)
+        add_bg(paths)
 
-    def set_image_url():
+    def add_image_url():
         url = simpledialog.askstring("Online background", "Paste a direct image URL (http:// or https://):", parent=root)
         if url and url.strip():
-            bg_image_var.set(url.strip())
+            add_bg([url.strip()])
 
-    tk.Button(bg_frame, text="Browse...", command=choose_image).pack(side="left", padx=(8, 0))
-    tk.Button(bg_frame, text="Online URL...", command=set_image_url).pack(side="left", padx=(6, 0))
-    note(t_look, "For online media, use a direct file URL (it must return the image/audio itself, not a webpage).", size=8)
-    pad(tk.Button(t_look, text="Remove image (solid background)", command=lambda: bg_image_var.set("")), pady=(0, 12))
+    def remove_selected_images():
+        for i in sorted(bg_listbox.curselection(), reverse=True):
+            del bg_list[i]
+        refresh_bg_list()
+
+    def clear_images():
+        bg_list.clear()
+        refresh_bg_list()
+
+    bg_buttons = tk.Frame(t_look)
+    bg_buttons.pack(anchor="w", padx=20, pady=(0, 5))
+    tk.Button(bg_buttons, text="Add files...", command=choose_images).pack(side="left")
+    tk.Button(bg_buttons, text="Add URL...", command=add_image_url).pack(side="left", padx=(6, 0))
+    tk.Button(bg_buttons, text="Remove selected", command=remove_selected_images).pack(side="left", padx=(6, 0))
+    tk.Button(bg_buttons, text="Clear all (solid background)", command=clear_images).pack(side="left", padx=(6, 0))
+    refresh_bg_list()
+    note(t_look, "With several images, one is picked at random each time the lock appears "
+                 "(never the same one twice in a row). For online media, use a direct file URL "
+                 "(it must return the image itself, not a webpage).", size=8)
+    pad(tk.Frame(t_look, height=6))
+    bg_per_screen_var = tk.BooleanVar(value=bool(cfg.get("background_per_screen", False)))
+    pad(tk.Checkbutton(t_look, text="Show a different random picture on each screen",
+                       variable=bg_per_screen_var), pady=(0, 2))
+    note(t_look, "Only matters when several screens are locked. Each screen gets its own picture "
+                 "when there are enough images; otherwise some pictures are reused.", size=8)
     bg_mode_var = tk.StringVar(value=str(cfg.get("background_mode", "fill")).capitalize())
-    pad(tk.Label(t_look, text="Image display mode:"), pady=(0, 3))
+    pad(tk.Label(t_look, text="Image display mode (default for all screens):"), pady=(0, 3))
     pad(tk.OptionMenu(t_look, bg_mode_var, "Fill", "Fit", "Stretch", "Center", "Tile"), pady=(0, 4))
     note(t_look, "Fill: cover the screen, crop the overflow. Fit: whole image visible, bars around it. "
                  "Stretch: distorts. Center: original size. Tile: repeat.", size=8)
@@ -460,13 +503,32 @@ def main():
 
     pad(tk.Checkbutton(t_look, text="All screens (includes monitors plugged in later)",
                        variable=all_screens_var), pady=(0, 2))
+    saved_modes = cfg.get("screen_background_modes")
+    saved_modes = saved_modes if isinstance(saved_modes, dict) else {}
+    mode_vars = {}
     for n, m in enumerate(connected, start=1):
         v = tk.BooleanVar(value=m["device"] in selected_now)
         screen_vars[m["device"]] = v
-        pad(tk.Checkbutton(t_look, text=monitors.monitor_label(m, n), variable=v), pady=(0, 1))
+        row = tk.Frame(t_look)
+        row.pack(anchor="w", padx=20, pady=(0, 1))
+        tk.Checkbutton(row, text=monitors.monitor_label(m, n), variable=v).pack(side="left")
+        saved_mode = str(saved_modes.get(m["device"], "")).lower()
+        mv = tk.StringVar(value=saved_mode.capitalize() if saved_mode in monitors.BACKGROUND_MODES else "Default")
+        mode_vars[m["device"]] = mv
+        tk.Label(row, text="   Image mode:").pack(side="left")
+        tk.OptionMenu(row, mv, "Default", "Fill", "Fit", "Stretch", "Center", "Tile").pack(side="left")
     all_screens_var.trace_add("write", on_all_toggled)
     for v in screen_vars.values():
         v.trace_add("write", on_screen_toggled)
+
+    def collect_screen_modes():
+        # Modes saved for monitors that are not plugged in are kept untouched.
+        out = {d: m for d, m in saved_modes.items() if d not in mode_vars}
+        for device, var in mode_vars.items():
+            mode = var.get().lower()
+            if mode in monitors.BACKGROUND_MODES:
+                out[device] = mode
+        return out
 
     def collect_lock_screens():
         if connected and all_screens_var.get():
@@ -481,7 +543,8 @@ def main():
     note(t_look, "Tick one or several monitors. The phrase panel is shown on the primary screen "
                  "(or on the left-most ticked screen) and the other ticked screens show the "
                  "background. If a ticked monitor is unplugged it is skipped; if none is left, "
-                 "the primary screen is used.", size=8)
+                 "the primary screen is used. \"Image mode\" sets how the background fits that screen "
+                 "(Default = the global mode above).", size=8)
     pad(tk.Label(t_look, text="Text panel color:"))
     panel_color_var = tk.StringVar(value=cfg.get("panel_color", DEFAULT_CONFIG["panel_color"]))
     color_frame = tk.Frame(t_look)
@@ -946,8 +1009,11 @@ def main():
             "title": title_var.get().strip() or DEFAULT_CONFIG["title"],
             "phrases": phrases,
             "phrases_file": phrases_file_var.get().strip(),
-            "background_image": bg_image_var.get().strip(),
+            "background_images": list(bg_list),
+            "background_image": bg_list[0] if bg_list else "",
             "background_mode": bg_mode_var.get().lower(),
+            "background_per_screen": bg_per_screen_var.get(),
+            "screen_background_modes": collect_screen_modes(),
             "lock_screens": collect_lock_screens(),
             "panel_color": panel_color_var.get().strip() or DEFAULT_CONFIG["panel_color"],
             "panel_opacity": num(panel_opacity_var, 100, 10, 100),
@@ -1075,8 +1141,8 @@ def main():
 
     watched_vars = [
         enabled_var, title_var, phrases_file_var, difficulty_var, theme_var, font_var,
-        ui_scale_var, scanlines_var, glow_var, glitch_var, bg_image_var, bg_mode_var,
-        all_screens_var, *screen_vars.values(), panel_color_var, panel_opacity_var, play_sound_var, sound_error_var,
+        ui_scale_var, scanlines_var, glow_var, glitch_var, bg_images_var, bg_mode_var,
+        all_screens_var, *screen_vars.values(), bg_per_screen_var, *mode_vars.values(), panel_color_var, panel_opacity_var, play_sound_var, sound_error_var,
         success_sound_var, error_sound_var, repeats_var, reset_on_error_var,
         strict_mode_var, weighting_var, disable_paste_var, case_insensitive_var,
         min_delay_var, max_attempts_var, lockout_seconds_var, daily_goal_var,

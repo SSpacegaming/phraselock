@@ -86,6 +86,29 @@ class ResolveMonitorTests(unittest.TestCase):
     def test_lock_monitors_no_info(self):
         self.assertEqual(monitors.resolve_lock_monitors(["all"], []), (None, []))
 
+    def test_background_mode_global_default(self):
+        self.assertEqual(monitors.background_mode_for({}, MAIN), "fill")
+        self.assertEqual(monitors.background_mode_for({"background_mode": "Tile"}, MAIN), "tile")
+
+    def test_background_mode_invalid_global_falls_back_to_fill(self):
+        self.assertEqual(monitors.background_mode_for({"background_mode": "weird"}, MAIN), "fill")
+
+    def test_background_mode_per_screen_override(self):
+        cfg = {"background_mode": "fill",
+               "screen_background_modes": {RIGHT["device"]: "center", LEFT["device"]: "Fit"}}
+        self.assertEqual(monitors.background_mode_for(cfg, RIGHT), "center")
+        self.assertEqual(monitors.background_mode_for(cfg, LEFT), "fit")
+        self.assertEqual(monitors.background_mode_for(cfg, MAIN), "fill")
+
+    def test_background_mode_invalid_override_is_ignored(self):
+        cfg = {"background_mode": "stretch", "screen_background_modes": {MAIN["device"]: "nope"}}
+        self.assertEqual(monitors.background_mode_for(cfg, MAIN), "stretch")
+
+    def test_background_mode_without_monitor_or_with_bad_overrides(self):
+        cfg = {"background_mode": "fit", "screen_background_modes": {MAIN["device"]: "tile"}}
+        self.assertEqual(monitors.background_mode_for(cfg, None), "fit")
+        self.assertEqual(monitors.background_mode_for({"background_mode": "fit", "screen_background_modes": "x"}, MAIN), "fit")
+
     def test_label(self):
         self.assertEqual(monitors.monitor_label(MAIN, 2), "Screen 2 - 2560x1440 (primary)")
         self.assertEqual(monitors.monitor_label(RIGHT, 3), "Screen 3 - 1920x1080")

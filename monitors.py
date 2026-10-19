@@ -6,6 +6,7 @@ it can be unit-tested without Windows or a display.
 
 PRIMARY = "primary"
 ALL = "all"
+BACKGROUND_MODES = ("fill", "fit", "stretch", "center", "tile")
 
 
 def list_monitors():
@@ -102,6 +103,24 @@ def resolve_lock_monitors(choices, monitors=None):
     picked.sort(key=lambda m: (m["x"], m["y"]))
     panel = primary if primary in picked else picked[0]
     return panel, [m for m in picked if m is not panel]
+
+
+def background_mode_for(cfg, mon):
+    """Image display mode (fill/fit/...) to use on monitor *mon*.
+
+    A per-screen choice in cfg["screen_background_modes"] ({device: mode}) wins;
+    otherwise the global cfg["background_mode"] applies ("fill" if invalid).
+    *mon* may be None (no monitor information): the global mode is used.
+    """
+    default = str(cfg.get("background_mode", "fill")).lower()
+    if default not in BACKGROUND_MODES:
+        default = "fill"
+    overrides = cfg.get("screen_background_modes")
+    if mon and isinstance(overrides, dict):
+        mode = str(overrides.get(mon.get("device", ""), "")).lower()
+        if mode in BACKGROUND_MODES:
+            return mode
+    return default
 
 
 def monitors_signature(monitors=None):

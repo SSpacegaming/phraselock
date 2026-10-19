@@ -19,14 +19,17 @@ from config import (
     CONFIG_PATH, DEFAULT_CONFIG, _normalize, _contrast_colors,
     load_config, log, self_command,
 )
-from media import play_audio, _remote_media_cache
+from media import play_audio, _remote_media_cache, pick_backgrounds
 from stats import (
     get_progress, get_streak, get_xp_level,
     record_stat, update_streak, add_progress, verify_emergency_password,
 )
 
 from phrases import pick_phrase, remember_last_phrase, get_last_phrase
-from monitors import resolve_lock_monitors, choices_from_cfg, monitors_signature, list_monitors
+from monitors import (
+    resolve_lock_monitors, choices_from_cfg, monitors_signature, list_monitors,
+    background_mode_for,
+)
 
 
 try:
@@ -84,15 +87,17 @@ def _place_on_monitor(root, mon):
     root.attributes("-topmost", True)
 
 
-def _build_covers(root, cover_mons, bg_image_path, bg_mode, scanlines, preview, visible):
+def _build_covers(root, cover_mons, cover_paths, cfg, scanlines, preview, visible):
     """Create one borderless cover window per extra locked screen.
 
-    Each cover shows the same background image (fitted to its own monitor)
-    but no phrase panel. Returns the list of Toplevel windows. A failure on one
+    Each cover shows its background image (fitted to its own monitor, with that
+    screen's display mode) but no phrase panel. Returns the list of Toplevel windows. A failure on one
     screen is logged and does not stop the lock from appearing on the others.
     """
     covers = []
-    for m in cover_mons:
+    for idx, m in enumerate(cover_mons):
+        bg_image_path = cover_paths[idx] if idx < len(cover_paths) else ""
+        bg_mode = background_mode_for(cfg, m)
         try:
             top = tk.Toplevel(root)
             top.withdraw()
@@ -261,8 +266,6 @@ def show_overlay(cfg, phrase_items, record_stats=True, preview=False, standby=No
     title = cfg.get("title", DEFAULT_CONFIG["title"])
     required = max(1, int(cfg.get("required_repeats", 1) or 1))
     reset_on_error = bool(cfg.get("reset_on_error", True))
-    bg_image_path = _remote_media_cache((cfg.get("background_image") or "").strip(), "image")
-    bg_mode = str(cfg.get("background_mode", "fill")).lower()
     panel_color = cfg.get("panel_color") or "#1a1a2e"
     try:
         panel_opacity = max(10, min(100, int(cfg.get("panel_opacity", 100)))) / 100.0
@@ -310,6 +313,10 @@ def show_overlay(cfg, phrase_items, record_stats=True, preview=False, standby=No
         log("Monitor selection failed, using the primary screen:\n" + traceback.format_exc())
         mon, cover_mons, mon_sig = None, [], ()
 
+    bg_paths = pick_backgrounds(cfg, 1 + len(cover_mons))
+    bg_image_path = bg_paths[0]
+    bg_mode = background_mode_for(cfg, mon)
+
     root = tk.Tk()
     if standby is not None:
         root.withdraw()
@@ -332,7 +339,7 @@ def show_overlay(cfg, phrase_items, record_stats=True, preview=False, standby=No
 
     screen_w = mon["w"] if mon else root.winfo_screenwidth()
     screen_h = mon["h"] if mon else root.winfo_screenheight()
-    covers = _build_covers(root, cover_mons, bg_image_path, bg_mode, scanlines,
+    covers = _build_covers(root, cover_mons, bg_paths[1:], cfg, scanlines,
                            preview, visible=(standby is None))
 
     try:
@@ -548,6 +555,11 @@ def show_overlay(cfg, phrase_items, record_stats=True, preview=False, standby=No
         wait_ms = _audio_duration_ms(success_sound) if play_sound else 0
         if wait_ms:
             root.withdraw()   # hide the overlay right away, keep the process alive
+            for c in covers:  # extra screens too, not only the main one
+                try:
+                    c.withdraw()
+                except tk.TclError:
+                    pass
             root.after(wait_ms, root.destroy)
         else:
             root.destroy()

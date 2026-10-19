@@ -33,7 +33,10 @@ DEFAULT_CONFIG = {
     "phrases_file": "",
     "title": "Conditional unlock",
     "background_image": "",
-    "background_mode": "fill",   # fill | fit | stretch | center | tile
+    "background_images": None,   # list of paths/URLs, one picked at random per lock; None = use "background_image"
+    "background_mode": "fill",   # fill | fit | stretch | center | tile (default for all screens)
+    "screen_background_modes": {},  # per-screen override: {display name: mode}
+    "background_per_screen": False, # True: a different random image on each locked screen
     "lock_screens": ["primary"], # "primary", "all", or Windows display names (see monitors.py)
     "panel_color": "#1a1a2e",
     "panel_opacity": 100,

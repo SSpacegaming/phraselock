@@ -2,6 +2,7 @@
 
 import os
 import time
+import random
 import ctypes
 import threading
 import traceback
@@ -79,6 +80,112 @@ def _remote_media_cache(value, kind):
     except Exception:
         log(f"Could not download remote {kind} {value}:\n" + traceback.format_exc())
         return ""
+
+
+def background_sources(cfg):
+    """Return the configured background images (local paths or URLs), in order.
+
+    New key "background_images" (list). When it is missing (None), the older
+    single "background_image" value is used, so existing configs keep working.
+    An empty list means: no image, solid background.
+    """
+    raw = cfg.get("background_images")
+    if raw is None:
+        raw = [cfg.get("background_image") or ""]
+    if isinstance(raw, str):
+        raw = [raw]
+    out = []
+    for item in raw:
+        item = str(item or "").strip()
+        if item and item not in out:
+            out.append(item)
+    return out
+
+
+def choose_background(sources, previous=None, rng=random, resolve=None, exists=os.path.isfile):
+    """Pick one usable background at random.
+
+    Returns (source, local_path), or ("", "") when none of the sources is
+    usable. The image used last time (*previous*) is avoided when another
+    usable one exists, so the same picture is not shown twice in a row.
+    Remote sources are only downloaded when they get tried.
+    """
+    if resolve is None:
+        resolve = lambda v: _remote_media_cache(v, "image")
+    fresh = [x for x in sources if x != previous]
+    rng.shuffle(fresh)
+    others = [x for x in sources if x == previous]
+    for source in fresh + others:
+        path = resolve(source)
+        if path and exists(path):
+            return source, path
+        log(f"Background image not usable, trying another: {source}")
+    return "", ""
+
+
+def choose_backgrounds(sources, count, previous=None, rng=random, resolve=None, exists=os.path.isfile):
+    """Pick *count* backgrounds, as different from each other as possible.
+
+    Returns a list of (source, local_path) of length *count*. The first entry
+    avoids *previous* when another usable image exists. When there are fewer
+    usable images than screens, images are reused in turn. When nothing is
+    usable every entry is ("", "").
+    """
+    count = max(1, int(count))
+    if resolve is None:
+        resolve = lambda v: _remote_media_cache(v, "image")
+    fresh = [x for x in sources if x != previous]
+    rng.shuffle(fresh)
+    others = [x for x in sources if x == previous]
+    usable = []
+    for source in fresh + others:
+        if len(usable) >= count:
+            break
+        path = resolve(source)
+        if path and exists(path):
+            usable.append((source, path))
+        else:
+            log(f"Background image not usable, trying another: {source}")
+    if not usable:
+        return [("", "")] * count
+    result = list(usable)
+    i = 0
+    while len(result) < count:
+        result.append(usable[i % len(usable)])
+        i += 1
+    return result[:count]
+
+
+_LAST_BACKGROUND = {"source": None}
+
+
+def pick_background_image(cfg):
+    """Local path of the background to use for this lock ("" for none)."""
+    sources = background_sources(cfg)
+    if not sources:
+        return ""
+    source, path = choose_background(sources, previous=_LAST_BACKGROUND["source"])
+    if source:
+        _LAST_BACKGROUND["source"] = source
+    return path
+
+
+def pick_backgrounds(cfg, count):
+    """Local background paths for *count* locked screens (first = phrase panel).
+
+    Same picture everywhere by default; with cfg["background_per_screen"] each
+    screen gets its own random picture (as far as there are enough images).
+    """
+    count = max(1, int(count))
+    sources = background_sources(cfg)
+    if not sources:
+        return [""] * count
+    if count == 1 or not cfg.get("background_per_screen", False):
+        return [pick_background_image(cfg)] * count
+    picks = choose_backgrounds(sources, count, previous=_LAST_BACKGROUND["source"])
+    if picks[0][0]:
+        _LAST_BACKGROUND["source"] = picks[0][0]
+    return [path for _src, path in picks]
 
 
 def play_audio(value):

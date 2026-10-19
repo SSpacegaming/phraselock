@@ -8,6 +8,21 @@ and this project follows [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **Image display mode per screen.** Next to each monitor in the *Look* tab, an *Image
+  mode* menu sets how the background fits that screen (Default, Fill, Fit, Stretch,
+  Center, Tile). *Default* uses the global *Image display mode*.
+- **Different picture on each screen.** New option *Show a different random picture on
+  each screen*. Each locked screen gets its own random image when there are enough
+  images (otherwise some are reused); when it is off, all screens show the same picture
+  as before.
+- New settings `screen_background_modes` and `background_per_screen`, with unit tests.
+- **Several background images.** The *Look* tab now has a list of background images
+  (*Add files...*, *Add URL...*, *Remove selected*, *Clear all*). One image is picked at
+  random each time the lock appears, and never the same one twice in a row. Images that
+  cannot be loaded are skipped. All locked screens show the same picture.
+- New `background_images` setting. The older single `background_image` value is still
+  used when the new key is missing, so existing configs keep working.
+- Unit tests for the background list and the random pick (`tests/test_media.py`).
 - **Multi-screen support.** The *Look* tab has a new "Show the lock on" section: tick
   one, several or all monitors ("All screens" also covers monitors plugged in later).
   The phrase panel appears on the primary screen (or on the left-most ticked screen if
@@ -16,6 +31,10 @@ and this project follows [Semantic Versioning](https://semver.org/).
 - New `lock_screens` setting (`"primary"` by default, so existing installs behave as
   before). The older single-value `lock_screen` key is still understood.
 - New `monitors.py` module (monitor detection and selection) with unit tests.
+
+### Fixed
+- With a success sound enabled, the extra screens of a multi-screen lock are now hidden
+  at the same moment as the main one instead of staying covered until the sound ends.
 
 ### Changed
 - If a ticked monitor is unplugged it is skipped, and the primary screen is used when

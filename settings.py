@@ -10,6 +10,7 @@ import re
 import json
 import subprocess
 import sys
+import backup
 import tkinter as tk
 from tkinter import ttk, simpledialog, messagebox, filedialog, colorchooser
 from datetime import datetime
@@ -1160,6 +1161,8 @@ def main():
 
     footer_btn("SAVE", on_save, "left", bg=ACCENT, fg="white")
     footer_btn("PREVIEW", on_preview, "left")
+    footer_btn("EXPORT", lambda: backup.export_dialog(root, lambda: {**cfg, **collect_cfg()}, validation_problem), "left")
+    footer_btn("IMPORT", lambda: backup.import_dialog(root) and root.destroy(), "left")
     tk.Label(footer, textvariable=saved_msg_var, font=("Consolas", 9), fg="#19e68c", bg=CARD_BG).pack(side="left", padx=14)
     footer_btn("[ LOCK NOW ]", launch_manual_lock, "right")
 

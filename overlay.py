@@ -17,7 +17,7 @@ import winerror
 
 from config import (
     CONFIG_PATH, DEFAULT_CONFIG, _normalize, _contrast_colors,
-    load_config, log, self_command,
+    load_config, log, self_command, pause_remaining_seconds,
 )
 from media import play_audio, _remote_media_cache, pick_backgrounds
 import gifbg
@@ -792,6 +792,22 @@ def show_overlay(cfg, phrase_items, record_stats=True, preview=False, standby=No
     if preview:
         submit_btn.config(text="Close Preview", command=root.destroy)
 
+    def close_if_paused():
+        """The pause hotkey / tray menu was used while the lock is showing: let go of the PC."""
+        if preview:
+            return
+        try:
+            if pause_remaining_seconds() > 0:
+                log("PhraseLock was paused while locked; closing the lock screen.")
+                for a in animators:
+                    a.stop()
+                root.grab_release()
+                root.destroy()
+                return
+            root.after(300, close_if_paused)
+        except tk.TclError:
+            pass
+
     def keep_on_top():
         try:
             for c in covers:
@@ -812,6 +828,7 @@ def show_overlay(cfg, phrase_items, record_stats=True, preview=False, standby=No
 
     if standby is None:
         keep_on_top()
+        close_if_paused()
         for a in animators:
             a.start()
         if not preview:
@@ -867,6 +884,7 @@ def show_overlay(cfg, phrase_items, record_stats=True, preview=False, standby=No
         entry.focus_force()
         root.grab_set()
         keep_on_top()
+        close_if_paused()
         for a in animators:   # GIFs only play while the lock is actually showing
             a.start()
         return True

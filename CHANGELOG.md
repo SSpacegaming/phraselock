@@ -8,6 +8,18 @@ and this project follows [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **Pause without the challenge.** Right-click the tray icon > *Pause PhraseLock* (5 minutes,
+  15 minutes, 30 minutes or 1 hour) and *Resume now*. While paused nothing locks: not after a
+  Windows lock or unlock, not by the idle lock, and a lock screen that is already showing
+  closes within a second. The tray icon gets a blue badge and says how many minutes are left.
+  The pause is stored in its own `pause.json` (so it survives a restart of the monitor, and
+  pausing never rebuilds the lock screen). It lasts 24 hours at most, whatever the clock says.
+- **Pause hotkey.** New *Pause / panic* section in the *Protection* tab: a global hotkey
+  (for example `Ctrl+Alt+P`, off by default) that pauses for a chosen number of minutes, and
+  pressed again resumes. It also works while the lock screen is showing. If another program
+  already uses the combination, the problem is written to `phraselock.log`.
+- New settings `pause_hotkey` and `pause_minutes`, new modules `hotkeys.py`, and unit tests
+  (`tests/test_pause.py`).
 - **Animated GIF backgrounds.** A `.gif` in the background list (local file or direct
   URL) now plays on the lock screen instead of showing only its first frame, on the main
   screen (behind the phrase panel) and on every extra locked screen. Frame timing follows

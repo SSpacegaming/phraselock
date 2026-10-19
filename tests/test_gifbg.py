@@ -309,13 +309,13 @@ class ScanlineTests(unittest.TestCase):
             img = Image.effect_noise(size, 60).convert("RGB")
             expected = self.reference(img)
             got = gifbg.apply_scanlines(img.copy())
-            self.assertEqual(list(got.getdata()), list(expected.getdata()), size)
+            self.assertEqual(got.tobytes(), expected.tobytes(), size)
 
     def test_rgba_images_get_the_same_rgb_result(self):
         img = Image.effect_noise((40, 20), 60).convert("RGB")
         expected = self.reference(img)
         got = gifbg.apply_scanlines(img.convert("RGBA")).convert("RGB")
-        self.assertEqual(list(got.getdata()), list(expected.getdata()))
+        self.assertEqual(got.tobytes(), expected.tobytes())
 
     def test_it_changes_the_image_in_place_and_returns_it(self):
         img = Image.new("RGB", (10, 12), (200, 200, 200))

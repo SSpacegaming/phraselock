@@ -16,7 +16,11 @@ import win32api
 import win32event
 import winerror 
 
-from config import load_config, log, within_schedule, self_command
+from config import (
+    load_config, log, within_schedule, self_command,
+    pause_remaining_seconds, toggle_pause,
+)
+from hotkeys import parse_hotkey, MOD_NOREPEAT
 from overlay import _overlay_is_running, _standby
 
 WM_WTSSESSION_CHANGE = getattr(win32con, "WM_WTSSESSION_CHANGE", 0x02B1)
@@ -60,7 +64,8 @@ def _start_idle_monitor(cfg):
                 if ctypes.windll.user32.GetLastInputInfo(ctypes.byref(info)):
                     tick = ctypes.c_uint32(ctypes.windll.kernel32.GetTickCount()).value
                     idle = (tick - info.dwTime) & 0xFFFFFFFF
-                    if idle >= threshold and load_config().get("enabled", True) and not _overlay_is_running():
+                    if (idle >= threshold and load_config().get("enabled", True)
+                            and not pause_remaining_seconds() and not _overlay_is_running()):
                         ctypes.windll.user32.LockWorkStation()
                         time.sleep(60)
                 time.sleep(5)
@@ -147,8 +152,9 @@ def _launch_lock_after_unlock(delay=0.2):
             return
         cfg = load_config()
         in_schedule = within_schedule(cfg)
-        log(f"Unlock follow-up. enabled={cfg.get('enabled', True)} in_schedule={in_schedule}")
-        if not cfg.get("enabled", True) or not in_schedule:
+        paused = pause_remaining_seconds()
+        log(f"Unlock follow-up. enabled={cfg.get('enabled', True)} in_schedule={in_schedule} paused={paused}s")
+        if not cfg.get("enabled", True) or not in_schedule or paused:
             return
         if _standby["ready"].is_set() and not _standby["active"].is_set():
             _standby["trigger"].set()
@@ -212,9 +218,48 @@ def _poll_session_state():
         time.sleep(0.25)
 
 
+PAUSE_HOTKEY_ID = 0x5048          # "PH"
+HOTKEY_SYNC_TIMER_ID = 1
+HOTKEY_SYNC_MS = 2000
+
+
 def watch_session_events():
+    hotkey = {"text": None}         # what is registered right now ("" = nothing)
+
+    def sync_hotkey(hwnd):
+        """(Re)register the pause hotkey when the setting changed. Runs on this thread
+        (the one that owns the window), as RegisterHotKey requires."""
+        wanted = str(load_config().get("pause_hotkey") or "").strip()
+        if wanted == hotkey["text"]:
+            return
+        if hotkey["text"]:
+            try:
+                win32gui.UnregisterHotKey(hwnd, PAUSE_HOTKEY_ID)
+            except Exception:
+                pass
+        hotkey["text"] = wanted
+        if not wanted:
+            log("Pause hotkey off.")
+            return
+        parsed = parse_hotkey(wanted)
+        if not parsed:
+            log(f"Pause hotkey not valid, ignored: {wanted}")
+            return
+        mods, vk = parsed
+        try:
+            win32gui.RegisterHotKey(hwnd, PAUSE_HOTKEY_ID, mods | MOD_NOREPEAT, vk)
+            log(f"Pause hotkey registered: {wanted}")
+        except Exception as exc:
+            log(f"Could not register the pause hotkey {wanted} (already used by another program?): {exc}")
+
     def wndproc(hwnd, msg, wparam, lparam):
         try:
+            if msg == win32con.WM_HOTKEY and wparam == PAUSE_HOTKEY_ID:
+                minutes = load_config().get("pause_minutes", 15)
+                paused = toggle_pause(minutes)
+                log(f"Pause hotkey pressed: now {'paused' if paused else 'resumed'}.")
+            elif msg == win32con.WM_TIMER and wparam == HOTKEY_SYNC_TIMER_ID:
+                sync_hotkey(hwnd)
             if msg == WM_WTSSESSION_CHANGE:
                 log(f"WM_WTSSESSION_CHANGE received, wparam={wparam}")
                 if wparam == WTS_SESSION_LOCK:
@@ -242,6 +287,12 @@ def watch_session_events():
     log(f"Hidden window created, hwnd={hwnd}")
     ok = win32ts.WTSRegisterSessionNotification(hwnd, win32ts.NOTIFY_FOR_THIS_SESSION)
     log(f"WTSRegisterSessionNotification -> {ok}")
+
+    try:
+        sync_hotkey(hwnd)
+        win32gui.SetTimer(hwnd, HOTKEY_SYNC_TIMER_ID, HOTKEY_SYNC_MS, None)
+    except Exception:
+        log("Pause hotkey setup failed:\n" + traceback.format_exc())
 
     threading.Thread(target=_poll_session_state,
                      name="PhraseLockSessionPoller", daemon=True).start()

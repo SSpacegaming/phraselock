@@ -18,6 +18,7 @@ from appicon import apply_window_icon
 import phrase_lock
 import monitors
 import media
+import hotkeys
 
 CONFIG_DIR = phrase_lock.CONFIG_DIR
 CONFIG_PATH = phrase_lock.CONFIG_PATH
@@ -786,7 +787,22 @@ def main():
     auto_protection_var = tk.BooleanVar(value=cfg.get("auto_protection", False))
     pad(tk.Checkbutton(t_prot, text="Restart PhraseLock if its process is terminated", variable=auto_protection_var), pady=(0, 6))
 
-    heading(t_prot, "[03] BOOT SEQUENCE")
+    heading(t_prot, "[03] PAUSE / PANIC", DANGER)
+    note(t_prot, "Pause PhraseLock for a while WITHOUT typing the phrase or the emergency password. "
+                 "From the tray icon: right-click > Pause PhraseLock. With a hotkey: press it once to "
+                 "pause (even while the lock screen is showing) and again to resume. While paused "
+                 "nothing locks, not even after a Windows lock. It works only while PhraseLock is running.",
+         color=WARN)
+    pause_hotkey_var = tk.StringVar(value=str(cfg.get("pause_hotkey", "") or ""))
+    pad(tk.Label(t_prot, text="Pause hotkey (e.g. Ctrl+Alt+P; empty = no hotkey):"), pady=(0, 3))
+    pad(tk.Entry(t_prot, textvariable=pause_hotkey_var, width=24), pady=(0, 3))
+    note(t_prot, "Needs Ctrl, Alt or Win plus one key (letter, digit, F1-F24, Space...). If another "
+                 "program already uses the combination, PhraseLock logs it and the hotkey stays off.", size=8)
+    pause_minutes_var = tk.IntVar(value=max(1, int(cfg.get("pause_minutes", 15) or 15)))
+    pad(tk.Label(t_prot, text="Hotkey pause duration (minutes):"), pady=(0, 3))
+    pad(tk.Spinbox(t_prot, from_=1, to=240, textvariable=pause_minutes_var, width=5), pady=(0, 6))
+
+    heading(t_prot, "[04] BOOT SEQUENCE")
     startup_status_var = tk.StringVar(
         value="Currently: enabled at logon" if is_startup_enabled() else "Currently: not enabled at logon"
     )
@@ -1060,6 +1076,8 @@ def main():
             "focus_block_apps": [x.strip() for x in blocked_apps_text.get('1.0', 'end').splitlines() if x.strip()],
             "idle_lock_enabled": idle_enabled_var.get(),
             "idle_lock_minutes": num(idle_minutes_var, 30, 1, 240),
+            "pause_hotkey": hotkeys.normalize_hotkey(pause_hotkey_var.get()),
+            "pause_minutes": num(pause_minutes_var, 15, 1, 240),
         }
 
     def validation_problem():
@@ -1070,6 +1088,10 @@ def main():
                 return "rules", "The schedule start/end must be valid HH:MM times (00:00 to 23:59)."
         if not validate_color():
             return "look", "The panel colour is not valid. Use a hex value like #1a1a2e."
+        typed = pause_hotkey_var.get().strip()
+        if typed and not hotkeys.normalize_hotkey(typed):
+            return "protection", ("The pause hotkey is not valid. Use Ctrl, Alt or Win plus one key, "
+                                  "for example Ctrl+Alt+P.")
         return None
 
     saved_msg_var = tk.StringVar()
@@ -1155,6 +1177,7 @@ def main():
         min_delay_var, max_attempts_var, lockout_seconds_var, daily_goal_var,
         schedule_enabled_var, schedule_start_var, schedule_end_var, focus_enabled_var,
         focus_minutes_var, idle_enabled_var, idle_minutes_var, auto_protection_var,
+        pause_hotkey_var, pause_minutes_var,
         *day_vars,
     ]
 

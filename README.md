@@ -19,6 +19,7 @@ Customize your phrases, choose a visual theme, track your progress, and make eac
 - **Several background images** — add as many pictures as you like; one is picked at random each time the lock appears, optionally a different one on each screen.
 - **Multi-screen support** — lock the primary screen, any screen, several screens, or all of them.
 - **Emergency recovery** — configure an emergency password before using protection features.
+- **Pause** — pause PhraseLock for 5 minutes to 1 hour from the tray icon, or with an optional global hotkey, without typing the phrase.
 - **System tray icon** — see at a glance that PhraseLock is running; open the settings from the tray.
 - **Windows executable** — get started without manually running the Python source code.
 
@@ -104,6 +105,8 @@ For TXT files, use the format expected by the phrase loader in the source code. 
 
 ## 🛡️ Safety and recovery
 
+**Pausing is not protected.** The tray menu and the pause hotkey (off by default) pause PhraseLock without the phrase or the emergency password. That is meant for real emergencies; if you use PhraseLock as a discipline tool, leave the hotkey empty and remember the tray menu is there.
+
 PhraseLock can interact with Windows session locking and optional automatic protection. Misconfiguration or unexpected behavior could interrupt your normal workflow.
 
 Before enabling protection:
@@ -167,6 +170,7 @@ Running the tests before building helps identify problems in the project's teste
 | `monitors.py`           | Monitor detection and screen choice  |
 | `media.py`              | Media and audio functionality        |
 | `gifbg.py`              | Animated GIF background decoding and timing |
+| `hotkeys.py`            | Parsing of the pause hotkey text     |
 | `PhraseLockWatchdog.py` | Optional watchdog functionality      |
 | `tray.py`               | System tray status icon              |
 | `appicon.py`            | Shared application icon helpers      |

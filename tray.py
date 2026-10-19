@@ -8,6 +8,7 @@ presence tells you PhraseLock is running. It is the application's own icon
     no badge     - running and active
     yellow badge - running, but outside the configured schedule
     grey badge   - running, but disabled in the settings
+    blue badge   - paused for a while (tray menu "Pause PhraseLock" or the pause hotkey)
 
 Everything here is best-effort: if pystray is missing or the tray cannot be
 created, the monitor keeps working without an icon.
@@ -28,7 +29,10 @@ import threading
 
 from PIL import Image, ImageDraw
 
-from config import load_config, within_schedule, log
+from config import (
+    load_config, within_schedule, log,
+    pause_remaining_seconds, start_pause, end_pause,
+)
 from appicon import load_tray_image
 
 POLL_SECONDS = 5
@@ -38,7 +42,10 @@ STATES = {
     "active": ("PhraseLock - running", None),
     "idle": ("PhraseLock - running (outside schedule)", (241, 196, 15, 255)),
     "disabled": ("PhraseLock - disabled", (149, 165, 166, 255)),
+    "paused": ("PhraseLock - paused", (52, 152, 219, 255)),
 }
+
+PAUSE_CHOICES = (5, 15, 30, 60)   # minutes offered in the tray menu
 
 SETTINGS_MUTEX = "Local\\PhraseLockSettingsOpen"
 _SYNCHRONIZE = 0x00100000
@@ -114,11 +121,22 @@ def current_state():
         cfg = load_config()
         if not cfg.get("enabled", True):
             return "disabled"
+        if pause_remaining_seconds() > 0:
+            return "paused"
         if not within_schedule(cfg):
             return "idle"
     except Exception:
         pass
     return "active"
+
+
+def state_text(name):
+    """Tooltip for a state; a pause also says how long is left."""
+    text = STATES[name][0]
+    if name == "paused":
+        minutes = max(1, -(-pause_remaining_seconds() // 60))   # round up
+        text += f" ({minutes} min left)"
+    return text
 
 
 # --------------------------------------------------------------------------
@@ -177,29 +195,50 @@ def start_tray():
 
     try:
         state = {"name": current_state()}
+        state["text"] = state_text(state["name"])
 
         def status_text(item):
-            return STATES[state["name"]][0]
+            return state["text"]
 
+        def refresh_now():
+            """Update icon, tooltip and menu right away (also called by the polling thread)."""
+            new = current_state()
+            text = state_text(new)
+            if new != state["name"] or text != state["text"]:
+                state["name"], state["text"] = new, text
+                icon.icon = make_icon(STATES[new][1])
+                icon.title = text
+                icon.update_menu()
+
+        def pause_for(minutes):
+            def action(icon_, item):
+                start_pause(minutes)
+                refresh_now()
+            return action
+
+        def resume_now(icon_, item):
+            end_pause()
+            refresh_now()
+
+        pause_menu = pystray.Menu(*[
+            pystray.MenuItem(f"{m} minutes" if m < 60 else "1 hour", pause_for(m))
+            for m in PAUSE_CHOICES
+        ])
         menu = pystray.Menu(
             pystray.MenuItem(status_text, None, enabled=False),
+            pystray.MenuItem("Pause PhraseLock", pause_menu),
+            pystray.MenuItem("Resume now", resume_now,
+                             visible=lambda item: pause_remaining_seconds() > 0),
             pystray.MenuItem("Open settings", _open_settings, default=True),
         )
-        text, color = STATES[state["name"]]
-        icon = pystray.Icon("PhraseLock", make_icon(color), text, menu)
+        icon = pystray.Icon("PhraseLock", make_icon(STATES[state["name"]][1]), state["text"], menu)
 
         stop = threading.Event()
 
         def refresh_loop():
             while not stop.wait(POLL_SECONDS):
                 try:
-                    new = current_state()
-                    if new != state["name"]:
-                        state["name"] = new
-                        t, c = STATES[new]
-                        icon.icon = make_icon(c)
-                        icon.title = t
-                        icon.update_menu()
+                    refresh_now()
                 except Exception:
                     log("Tray refresh failed.")
 

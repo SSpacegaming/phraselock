@@ -11,7 +11,7 @@ import sys
 from config import (
     CONFIG_DIR, CONFIG_PATH, LOG_PATH, STATS_PATH, STREAK_PATH,
     MEDIA_CACHE_DIR, DEFAULT_CONFIG,
-    log, load_config, save_json, within_schedule, _normalize,
+    log, load_config, save_json, within_schedule, _normalize, pause_remaining_seconds,
     _contrast_colors, _blend_hex,
 )
 from stats import (
@@ -99,7 +99,9 @@ if __name__ == "__main__":
             log("Another lock overlay is already open; exiting this one.")
             raise SystemExit
         cfg = load_config()
-        if cfg.get("enabled", True) and within_schedule(cfg):
+        if pause_remaining_seconds():
+            log("PhraseLock is paused; not showing the lock.")
+        elif cfg.get("enabled", True) and within_schedule(cfg):
             show_overlay(cfg, _phrase_items_for_overlay(cfg),
                          record_stats=True, preview=False)
         raise SystemExit

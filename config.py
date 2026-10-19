@@ -3,6 +3,7 @@
 import os
 import sys
 import json
+import time
 import unicodedata
 from datetime import datetime
 
@@ -12,6 +13,7 @@ LOG_PATH = os.path.join(CONFIG_DIR, "phraselock.log")
 STATS_PATH = os.path.join(CONFIG_DIR, "stats.json")
 STREAK_PATH = os.path.join(CONFIG_DIR, "streak.json")
 MEDIA_CACHE_DIR = os.path.join(CONFIG_DIR, "media_cache")
+PAUSE_PATH = os.path.join(CONFIG_DIR, "pause.json")   # kept apart from config.json so pausing never rebuilds the overlay
 
 # Entry point used to relaunch PhraseLock with --lock / --focus-session.
 ENTRY_SCRIPT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "phrase_lock.py")
@@ -78,6 +80,8 @@ DEFAULT_CONFIG = {
     "idle_lock_enabled": False,
     "idle_lock_minutes": 30,
     "manual_lock_hotkey": "",
+    "pause_hotkey": "",          # e.g. "Ctrl+Alt+P": pause PhraseLock / resume, without the challenge ("" = off)
+    "pause_minutes": 15,         # how long the hotkey pauses for
 }
 
 
@@ -189,3 +193,59 @@ def _blend_hex(foreground, background="#111111", alpha=1.0):
         return f"#{r:02x}{g:02x}{b:02x}"
     except Exception:
         return background
+
+# --------------------------------------------------------------------------
+# Pause: switch the lock off for a while without typing the phrase
+# --------------------------------------------------------------------------
+
+MAX_PAUSE_MINUTES = 24 * 60
+
+
+def pause_remaining_seconds(now=None, path=None):
+    """Seconds left of a pause, or 0 when PhraseLock is not paused.
+
+    The end time is stored as a wall-clock timestamp so a pause survives a
+    restart of the monitor. A pause can never be longer than MAX_PAUSE_MINUTES
+    from now, so a changed system clock cannot make it last forever.
+    """
+    now = time.time() if now is None else now
+    try:
+        with open(path or PAUSE_PATH, "r", encoding="utf-8") as f:
+            until = float(json.load(f).get("until", 0))
+    except Exception:
+        return 0
+    return int(max(0, min(until - now, MAX_PAUSE_MINUTES * 60)))
+
+
+def start_pause(minutes, now=None, path=None):
+    """Pause PhraseLock for *minutes* (1 to MAX_PAUSE_MINUTES). Returns the end timestamp."""
+    try:
+        minutes = int(minutes)
+    except (TypeError, ValueError):
+        minutes = 15
+    minutes = max(1, min(MAX_PAUSE_MINUTES, minutes))
+    now = time.time() if now is None else now
+    until = now + minutes * 60
+    save_json(path or PAUSE_PATH, {"until": until})
+    log(f"Paused for {minutes} minute(s).")
+    return until
+
+
+def end_pause(path=None):
+    """Resume PhraseLock now."""
+    try:
+        os.remove(path or PAUSE_PATH)
+        log("Pause ended.")
+    except FileNotFoundError:
+        pass
+    except OSError:
+        log("Could not remove the pause file.")
+
+
+def toggle_pause(minutes, now=None, path=None):
+    """Hotkey behaviour: resume if paused, otherwise pause. Returns True when now paused."""
+    if pause_remaining_seconds(now, path) > 0:
+        end_pause(path)
+        return False
+    start_pause(minutes, now, path)
+    return True

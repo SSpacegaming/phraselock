@@ -7,6 +7,21 @@ and this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **Multi-screen support.** The *Look* tab has a new "Show the lock on" section: tick
+  one, several or all monitors ("All screens" also covers monitors plugged in later).
+  The phrase panel appears on the primary screen (or on the left-most ticked screen if
+  the primary is not ticked); the other ticked screens show the background image with
+  no panel. Preview closes if you click a cover screen.
+- New `lock_screens` setting (`"primary"` by default, so existing installs behave as
+  before). The older single-value `lock_screen` key is still understood.
+- New `monitors.py` module (monitor detection and selection) with unit tests.
+
+### Changed
+- If a ticked monitor is unplugged it is skipped, and the primary screen is used when
+  none of the ticked monitors is left. The saved choice is kept.
+- The hidden standby lock rebuilds itself when the monitor layout changes.
+
 ## [1.0.2] - 2026-10-18
 
 ### Added

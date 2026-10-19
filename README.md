@@ -16,6 +16,7 @@ Customize your phrases, choose a visual theme, track your progress, and make eac
 - **Progress tracking** — features in the source include streaks, daily goals, XP, levels, and badges.
 - **Phrase libraries** — support for external TXT, CSV, and JSON phrase collections.
 - **Visual customization** — themes, backgrounds, interface scaling, and visual effects are available in the project.
+- **Multi-screen support** — lock the primary screen, any screen, several screens, or all of them.
 - **Emergency recovery** — configure an emergency password before using protection features.
 - **System tray icon** — see at a glance that PhraseLock is running; open the settings from the tray.
 - **Windows executable** — get started without manually running the Python source code.
@@ -23,8 +24,6 @@ Customize your phrases, choose a visual theme, track your progress, and make eac
 Feature availability may depend on the version and configuration you are running.
 
 ## 📸 Screenshots
-
-Uncomment this section once the images exist (see TODO.md).
 
 ![Lock overlay](docs/screenshots/overlay.png)
 ![Settings](docs/screenshots/settings.png)
@@ -52,11 +51,24 @@ Only run the executable if you trust its source. You can also inspect the source
 1. Launch PhraseLock.
 2. Open the settings interface and configure your phrases.
 3. Set an emergency password and verify that your recovery method works.
-4. Review the available protection and challenge settings.
-5. Test the challenge manually before enabling automatic behavior.
-6. Enable only the features you understand and want to use.
+4. If you use several monitors, pick which ones show the lock in the **Look** tab (see the Multi-screen section below).
+5. Review the available protection and challenge settings.
+6. Test the challenge manually before enabling automatic behavior.
+7. Enable only the features you understand and want to use.
 
 **Always test the emergency recovery procedure before enabling strict or automatic protection.** Keep an alternative way to access your Windows account available.
+
+## 🖥️ Multi-screen
+
+In the **Look** tab, under **Show the lock on**, tick the monitors that should be locked:
+
+- **One screen** — only that monitor is locked; the others stay usable.
+- **Several screens** — every ticked monitor is covered.
+- **All screens** — every monitor is covered, including monitors you plug in later.
+
+The phrase panel (where you type) appears on the primary screen, or on the left-most ticked screen if the primary is not ticked. The other ticked screens show the background image without the panel. The default is the primary screen only.
+
+If a ticked monitor is unplugged, it is skipped; if none of the ticked monitors is available, the primary screen is used. Your choice is kept and applies again when the monitor is back.
 
 ## 📝 Custom phrase libraries
 
@@ -146,6 +158,7 @@ Running the tests before building helps identify problems in the project's teste
 | `stats.py`              | Progress and statistics              |
 | `session.py`            | Session and protection logic         |
 | `overlay.py`            | Challenge overlay                    |
+| `monitors.py`           | Monitor detection and screen choice  |
 | `media.py`              | Media and audio functionality        |
 | `PhraseLockWatchdog.py` | Optional watchdog functionality      |
 | `tray.py`               | System tray status icon              |
@@ -172,6 +185,14 @@ Running the tests before building helps identify problems in the project's teste
 - Check the file format and required fields.
 - Compare your file with the expected format in `phrases.py`.
 - Try a small test file before importing a larger collection.
+
+**The lock does not appear on the screen I chose**
+
+- Fully quit PhraseLock (tray icon, Task Manager) and start it again so the background process reloads the setting.
+- Make sure you run a build that includes multi-screen support (rebuild the executable if you run it from `dist\`).
+- Check that the monitor is listed in the **Look** tab. If it is missing, Windows does not report it; check your display settings.
+- If a ticked monitor is unplugged, the primary screen is used instead.
+- See `%APPDATA%\PhraseLock\phraselock.log` for "Monitor selection failed" or "Could not create a cover window" messages.
 
 **I am worried about being locked out**
 

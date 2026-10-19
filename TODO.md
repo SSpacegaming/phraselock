@@ -13,7 +13,7 @@ Tick a box when a feature is done (clickable on GitHub).
 
 ## 🟠 Medium priority
 
-- [ ] Multi-screen support: select on which screen the lock is displayed
+- [x] Multi-screen support: select on which screen the lock is displayed
 - [ ] Able to choose multiple pictures and display them randomly
 - [ ] Able to put a GIF or video as the lock background
 - [ ] Add default theme packs (TechDom, PetDom, Mommy/Daddy, Master/Mistress, Brat Tamer, FinDom, etc.)

@@ -34,6 +34,7 @@ DEFAULT_CONFIG = {
     "title": "Conditional unlock",
     "background_image": "",
     "background_mode": "fill",   # fill | fit | stretch | center | tile
+    "lock_screens": ["primary"], # "primary", "all", or Windows display names (see monitors.py)
     "panel_color": "#1a1a2e",
     "panel_opacity": 100,
     "required_repeats": 1,

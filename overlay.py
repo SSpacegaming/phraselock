@@ -26,6 +26,7 @@ from stats import (
 )
 
 from phrases import pick_phrase, remember_last_phrase, get_last_phrase
+from monitors import resolve_lock_monitors, choices_from_cfg, monitors_signature, list_monitors
 
 
 try:
@@ -66,6 +67,68 @@ def _overlay_is_running():
         return True
     except Exception:
         return False
+
+
+def _place_on_monitor(root, mon):
+    """Cover the whole of one monitor with the (already created) root window.
+
+    mon is None or the primary monitor -> the original behaviour (Tk
+    fullscreen). Any other monitor -> a borderless window sized and positioned
+    on that monitor, because Tk's -fullscreen is not reliable off the primary.
+    """
+    if mon is None or mon.get("primary"):
+        root.attributes("-fullscreen", True)
+    else:
+        root.overrideredirect(True)
+        root.geometry(f"{mon['w']}x{mon['h']}+{mon['x']}+{mon['y']}")
+    root.attributes("-topmost", True)
+
+
+def _build_covers(root, cover_mons, bg_image_path, bg_mode, scanlines, preview, visible):
+    """Create one borderless cover window per extra locked screen.
+
+    Each cover shows the same background image (fitted to its own monitor)
+    but no phrase panel. Returns the list of Toplevel windows. A failure on one
+    screen is logged and does not stop the lock from appearing on the others.
+    """
+    covers = []
+    for m in cover_mons:
+        try:
+            top = tk.Toplevel(root)
+            top.withdraw()
+            top.overrideredirect(True)
+            top.geometry(f"{m['w']}x{m['h']}+{m['x']}+{m['y']}")
+            top.configure(bg="#111111")
+            try:
+                from PIL import Image, ImageTk, ImageColor, ImageDraw
+                img = None
+                if bg_image_path and os.path.isfile(bg_image_path):
+                    with Image.open(bg_image_path) as src:
+                        img = fit_background(src, m["w"], m["h"], bg_mode)
+                if img is None:
+                    img = Image.new("RGB", (m["w"], m["h"]), "#111111")
+                if scanlines:
+                    img = img.convert("RGBA")
+                    line_draw = ImageDraw.Draw(img)
+                    for yy in range(0, m["h"], 6):
+                        line_draw.line((0, yy, m["w"], yy), fill=(10, 10, 16, 42), width=1)
+                    img = img.convert("RGB")
+                photo = ImageTk.PhotoImage(img, master=top)
+                label = tk.Label(top, image=photo, bd=0, highlightthickness=0)
+                label.image = photo
+                label.place(x=0, y=0, relwidth=1, relheight=1)
+            except Exception:
+                log("Cover background failed, using a solid colour:\n" + traceback.format_exc())
+            if preview:
+                # Safety net: clicking a cover closes the preview.
+                top.bind("<Button-1>", lambda e: root.destroy())
+            top.attributes("-topmost", True)
+            if visible:
+                top.deiconify()
+            covers.append(top)
+        except Exception:
+            log("Could not create a cover window:\n" + traceback.format_exc())
+    return covers
 
 
 def _pick_and_remember(items, previous=None, cfg=None):
@@ -239,11 +302,18 @@ def show_overlay(cfg, phrase_items, record_stats=True, preview=False, standby=No
     if preview:
         _replace_previous_preview()
 
+    try:
+        monitors = list_monitors()
+        mon, cover_mons = resolve_lock_monitors(choices_from_cfg(cfg), monitors)
+        mon_sig = monitors_signature(monitors)
+    except Exception:
+        log("Monitor selection failed, using the primary screen:\n" + traceback.format_exc())
+        mon, cover_mons, mon_sig = None, [], ()
+
     root = tk.Tk()
     if standby is not None:
         root.withdraw()
-    root.attributes("-fullscreen", True)
-    root.attributes("-topmost", True)
+    _place_on_monitor(root, mon)
     root.title(title)
 
     ui_bg = "#030305"
@@ -260,8 +330,10 @@ def show_overlay(cfg, phrase_items, record_stats=True, preview=False, standby=No
         root.bind("<Alt-F4>", lambda e: "break")
         root.bind("<Escape>", lambda e: "break")
 
-    screen_w = root.winfo_screenwidth()
-    screen_h = root.winfo_screenheight()
+    screen_w = mon["w"] if mon else root.winfo_screenwidth()
+    screen_h = mon["h"] if mon else root.winfo_screenheight()
+    covers = _build_covers(root, cover_mons, bg_image_path, bg_mode, scanlines,
+                           preview, visible=(standby is None))
 
     try:
         from PIL import Image, ImageTk, ImageColor, ImageDraw
@@ -642,6 +714,12 @@ def show_overlay(cfg, phrase_items, record_stats=True, preview=False, standby=No
 
     def keep_on_top():
         try:
+            for c in covers:
+                try:
+                    c.attributes("-topmost", True)
+                    c.lift()
+                except tk.TclError:
+                    pass
             if emergency_dialog is None:
                 root.attributes("-topmost", True)
                 root.lift()
@@ -694,8 +772,14 @@ def show_overlay(cfg, phrase_items, record_stats=True, preview=False, standby=No
         )
         start_time = time.monotonic()
         root.deiconify()
-        root.attributes("-fullscreen", True)
-        root.attributes("-topmost", True)
+        _place_on_monitor(root, mon)
+        for c in covers:
+            try:
+                c.deiconify()
+                c.attributes("-topmost", True)
+                c.lift()
+            except tk.TclError:
+                pass
         root.lift()
         root.focus_force()
         entry.focus_force()
@@ -710,9 +794,11 @@ def show_overlay(cfg, phrase_items, record_stats=True, preview=False, standby=No
                 if activate():
                     return
             poll["n"] += 1
-            changed = poll["n"] % 40 == 0 and watched_mtimes() != config_mtime
+            changed = poll["n"] % 40 == 0 and (
+                watched_mtimes() != config_mtime or monitors_signature() != mon_sig
+            )
             if changed:
-                log("Config changed; rebuilding standby overlay.")
+                log("Config or monitor layout changed; rebuilding standby overlay.")
                 root.destroy()
                 return
             root.after(25, poll_trigger)

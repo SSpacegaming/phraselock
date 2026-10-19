@@ -16,6 +16,7 @@ from datetime import datetime
 from appicon import apply_window_icon
 
 import phrase_lock
+import monitors
 
 CONFIG_DIR = phrase_lock.CONFIG_DIR
 CONFIG_PATH = phrase_lock.CONFIG_PATH
@@ -418,6 +419,69 @@ def main():
     pad(tk.OptionMenu(t_look, bg_mode_var, "Fill", "Fit", "Stretch", "Center", "Tile"), pady=(0, 4))
     note(t_look, "Fill: cover the screen, crop the overflow. Fit: whole image visible, bars around it. "
                  "Stretch: distorts. Center: original size. Tile: repeat.", size=8)
+    # ---- lock screens (multi-monitor) ----
+    connected = monitors.list_monitors()
+    saved_screens = monitors.choices_from_cfg(cfg)
+    primary_dev = next((m["device"] for m in connected if m["primary"]), None)
+    all_saved = monitors.ALL in saved_screens
+    panel_m, cover_ms = monitors.resolve_lock_monitors(saved_screens, connected)
+    selected_now = {m["device"] for m in ([panel_m] if panel_m else []) + cover_ms}
+    # Saved device names that are not plugged in right now are kept as-is, so an
+    # unrelated autosave does not silently drop them.
+    missing_saved = [c for c in saved_screens
+                     if c not in (monitors.PRIMARY, monitors.ALL)
+                     and c not in {m["device"] for m in connected}]
+
+    pad(tk.Label(t_look, text="Show the lock on:"), pady=(0, 3))
+    all_screens_var = tk.BooleanVar(value=all_saved and len(connected) > 0)
+    screen_vars = {}
+    screen_guard = {"busy": False}
+
+    def on_all_toggled(*_):
+        if screen_guard["busy"]:
+            return
+        screen_guard["busy"] = True
+        try:
+            if all_screens_var.get():
+                for v in screen_vars.values():
+                    v.set(True)
+        finally:
+            screen_guard["busy"] = False
+
+    def on_screen_toggled(*_):
+        if screen_guard["busy"]:
+            return
+        screen_guard["busy"] = True
+        try:
+            if not all(v.get() for v in screen_vars.values()):
+                all_screens_var.set(False)
+        finally:
+            screen_guard["busy"] = False
+
+    pad(tk.Checkbutton(t_look, text="All screens (includes monitors plugged in later)",
+                       variable=all_screens_var), pady=(0, 2))
+    for n, m in enumerate(connected, start=1):
+        v = tk.BooleanVar(value=m["device"] in selected_now)
+        screen_vars[m["device"]] = v
+        pad(tk.Checkbutton(t_look, text=monitors.monitor_label(m, n), variable=v), pady=(0, 1))
+    all_screens_var.trace_add("write", on_all_toggled)
+    for v in screen_vars.values():
+        v.trace_add("write", on_screen_toggled)
+
+    def collect_lock_screens():
+        if connected and all_screens_var.get():
+            return [monitors.ALL]
+        picked = [d for d, v in screen_vars.items() if v.get()]
+        if not picked and not missing_saved:
+            return [monitors.PRIMARY]
+        if picked == [primary_dev] and not missing_saved:
+            return [monitors.PRIMARY]
+        return picked + missing_saved
+
+    note(t_look, "Tick one or several monitors. The phrase panel is shown on the primary screen "
+                 "(or on the left-most ticked screen) and the other ticked screens show the "
+                 "background. If a ticked monitor is unplugged it is skipped; if none is left, "
+                 "the primary screen is used.", size=8)
     pad(tk.Label(t_look, text="Text panel color:"))
     panel_color_var = tk.StringVar(value=cfg.get("panel_color", DEFAULT_CONFIG["panel_color"]))
     color_frame = tk.Frame(t_look)
@@ -884,6 +948,7 @@ def main():
             "phrases_file": phrases_file_var.get().strip(),
             "background_image": bg_image_var.get().strip(),
             "background_mode": bg_mode_var.get().lower(),
+            "lock_screens": collect_lock_screens(),
             "panel_color": panel_color_var.get().strip() or DEFAULT_CONFIG["panel_color"],
             "panel_opacity": num(panel_opacity_var, 100, 10, 100),
             "required_repeats": num(repeats_var, 1, 1, 20),
@@ -1011,7 +1076,7 @@ def main():
     watched_vars = [
         enabled_var, title_var, phrases_file_var, difficulty_var, theme_var, font_var,
         ui_scale_var, scanlines_var, glow_var, glitch_var, bg_image_var, bg_mode_var,
-        panel_color_var, panel_opacity_var, play_sound_var, sound_error_var,
+        all_screens_var, *screen_vars.values(), panel_color_var, panel_opacity_var, play_sound_var, sound_error_var,
         success_sound_var, error_sound_var, repeats_var, reset_on_error_var,
         strict_mode_var, weighting_var, disable_paste_var, case_insensitive_var,
         min_delay_var, max_attempts_var, lockout_seconds_var, daily_goal_var,

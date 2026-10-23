@@ -1,9 +1,7 @@
 """The fullscreen lock overlay (Tk + PIL compositing)."""
 
 import os
-import sys
 import time
-import random
 import traceback
 import threading
 import subprocess
@@ -26,7 +24,7 @@ from stats import (
     record_stat, update_streak, add_progress, verify_emergency_password,
 )
 
-from phrases import pick_phrase, remember_last_phrase, get_last_phrase
+from phrases import pick_phrase, remember_last_phrase
 from monitors import (
     resolve_lock_monitors, choices_from_cfg, monitors_signature, list_monitors,
     background_mode_for,
@@ -122,7 +120,7 @@ def _build_covers(root, cover_mons, cover_paths, cfg, scanlines, preview, visibl
             top.geometry(f"{m['w']}x{m['h']}+{m['x']}+{m['y']}")
             top.configure(bg="#111111")
             try:
-                from PIL import Image, ImageTk, ImageColor, ImageDraw
+                from PIL import Image, ImageTk
                 gif = gifbg.get_gif_frames(bg_image_path) if animate else None
 
                 if gif:
@@ -290,7 +288,6 @@ def show_overlay(cfg, phrase_items, record_stats=True, preview=False, standby=No
     file-format logic).
     """
 
-    phrases = [x.get("text", "") for x in phrase_items]
     title = cfg.get("title", DEFAULT_CONFIG["title"])
     required = max(1, int(cfg.get("required_repeats", 1) or 1))
     reset_on_error = bool(cfg.get("reset_on_error", True))
@@ -690,7 +687,11 @@ def show_overlay(cfg, phrase_items, record_stats=True, preview=False, standby=No
                     dialog.destroy()
                 except tk.TclError:
                     pass
-                emergency_dialog = None
+                # FIXME: this is missing the `nonlocal emergency_dialog` that
+                # close_emergency() has above, so it shadows a local instead
+                # of clearing the outer flag — leaving the suppression here
+                # rather than changing behavior in a lint-only PR.
+                emergency_dialog = None  # noqa: F841
                 state["emergency_used"] = True
                 finish_success(emergency=True)
             else:

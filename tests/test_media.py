@@ -59,13 +59,17 @@ class ChooseBackgroundTests(unittest.TestCase):
         self.assertEqual(seen, {"a.png", "b.png", "c.png"})
 
     def test_skips_unusable_images(self):
-        exists = lambda p: p == "good.png"
+        def exists(p):
+            return p == "good.png"
+
         for seed in range(20):
             self.assertEqual(self.run_choose(["bad1.png", "good.png", "bad2.png"], seed=seed, exists=exists),
                              ("good.png", "good.png"))
 
     def test_falls_back_to_previous_when_it_is_the_only_usable_one(self):
-        exists = lambda p: p == "b.png"
+        def exists(p):
+            return p == "b.png"
+
         self.assertEqual(self.run_choose(["a.png", "b.png"], previous="b.png", exists=exists), ("b.png", "b.png"))
 
     def test_none_usable_returns_empty(self):
@@ -85,7 +89,9 @@ class ChooseBackgroundTests(unittest.TestCase):
         self.assertEqual(len(calls), 1)
 
     def test_resolver_failure_moves_on_to_the_next_image(self):
-        resolve = lambda v: "" if v == "http://x/bad.png" else v
+        def resolve(v):
+            return "" if v == "http://x/bad.png" else v
+
         for seed in range(20):
             self.assertEqual(self.run_choose(["http://x/bad.png", "ok.png"], seed=seed, resolve=resolve)[0], "ok.png")
 
@@ -121,7 +127,9 @@ class ChooseBackgroundsTests(unittest.TestCase):
         self.assertEqual(picks[0][0], "b")
 
     def test_unusable_images_are_skipped(self):
-        exists = lambda p: p in ("x", "y")
+        def exists(p):
+            return p in ("x", "y")
+
         for seed in range(20):
             picks = self.run_choose(["bad", "x", "worse", "y"], 2, seed=seed, exists=exists)
             self.assertEqual({src for src, _ in picks}, {"x", "y"})

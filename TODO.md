@@ -53,5 +53,5 @@ Tick a box when a feature is done (clickable on GitHub).
 - [x] Add a `CHANGELOG.md` and short release notes for each version
 - [ ] Move the modules into a `phraselock/` package folder
 - [ ] Add a language option for the interface and phrases
-- [ ] Add a linter to the GitHub Actions workflow (for example ruff)
+- [x] Add a linter to the GitHub Actions workflow (for example ruff)
 - [ ] Publish a SHA-256 checksum next to `PhraseLock.exe`, and eventually sign the exe to reduce the SmartScreen warning

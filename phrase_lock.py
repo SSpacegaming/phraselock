@@ -9,33 +9,21 @@ os.environ["PYINSTALLER_RESET_ENVIRONMENT"] = "1"
 import sys
 
 from config import (
-    CONFIG_DIR, CONFIG_PATH, LOG_PATH, STATS_PATH, STREAK_PATH,
-    MEDIA_CACHE_DIR, DEFAULT_CONFIG,
-    log, load_config, save_json, within_schedule, _normalize, pause_remaining_seconds,
-    _contrast_colors, _blend_hex,
-)
-from stats import (
-    record_stat, get_progress, add_progress, get_xp_level, badges_for,
-    update_streak, get_streak, set_emergency_password, verify_emergency_password,
-    compute_wpm, compute_accuracy, weekly_series,
+    CONFIG_DIR, log, load_config, within_schedule, pause_remaining_seconds,
 )
 from media import (
-    _is_http_url, _remote_media_cache, play_audio,
-    MAX_IMAGE_BYTES, MAX_AUDIO_BYTES,
+    play_audio,
 )
 from overlay import (
     show_overlay, start_standby_overlay,
-    _overlay_is_running, _try_acquire_overlay_mutex, _standby,
     OVERLAY_MUTEX_NAME,
 )
 from phrases import (
-    load_external_phrases, get_phrases,
-    pick_phrase, remember_last_phrase, get_last_phrase,  # <-- new
+    get_phrases,  # <-- new
 )
 from session import (
     MONITOR_MUTEX_NAME, acquire_single_instance,
-    _start_idle_monitor, show_focus_session, _launch_lock_after_unlock,
-    _workstation_is_locked, _poll_session_state, watch_session_events,
+    _start_idle_monitor, show_focus_session, watch_session_events,
     start_watchdog,
 )
 

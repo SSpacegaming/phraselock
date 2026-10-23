@@ -1,0 +1,13 @@
+# Ruff configuration for PhraseLock.
+# Run locally with:  ruff check .
+# Autofix with:       ruff check --fix .
+
+target-version = "py312"
+
+[lint]
+# Ruff's own defaults (pyflakes + a slice of pycodestyle): real bugs like
+# unused imports/variables, duplicate names, bare except-less syntax errors.
+# Intentionally not pulling in the stricter opinionated rule sets (bugbear,
+# security, datetime-tz, etc.) yet — there's a sizeable backlog of those and
+# they deserve their own pass rather than blocking this first CI gate.
+select = ["E4", "E7", "E9", "F"]

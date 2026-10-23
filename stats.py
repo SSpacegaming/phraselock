@@ -1,15 +1,13 @@
 """Streaks, XP, badges, statistics and emergency password hashing."""
 
-import os
 import json
-import time
 import hashlib
 import hmac
 import secrets
 import traceback
 from datetime import datetime, date, timedelta
 
-from config import CONFIG_DIR, LOG_PATH, STATS_PATH, STREAK_PATH, save_json, log
+from config import STATS_PATH, STREAK_PATH, save_json, log
 
 # --------------------------------------------------------------------------
 # Typing metrics

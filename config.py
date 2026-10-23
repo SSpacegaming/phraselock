@@ -182,8 +182,10 @@ def _blend_hex(foreground, background="#111111", alpha=1.0):
     try:
         fg = foreground.lstrip("#")
         bg = background.lstrip("#")
-        if len(fg) == 3: fg = "".join(c * 2 for c in fg)
-        if len(bg) == 3: bg = "".join(c * 2 for c in bg)
+        if len(fg) == 3:
+            fg = "".join(c * 2 for c in fg)
+        if len(bg) == 3:
+            bg = "".join(c * 2 for c in bg)
         fr, fg_, fb = (int(fg[i:i+2], 16) for i in (0, 2, 4))
         br, bg_, bb = (int(bg[i:i+2], 16) for i in (0, 2, 4))
         a = max(0.0, min(1.0, float(alpha)))

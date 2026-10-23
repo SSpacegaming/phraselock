@@ -121,7 +121,8 @@ def ensure_phrase_lock_monitor():
     Previously the Settings UI could be open while no monitor process existed,
     making Win+L appear to do nothing.
     """
-    import subprocess, sys
+    import subprocess
+    import sys
     try:
         import psutil
     except ImportError:

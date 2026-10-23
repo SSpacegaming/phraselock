@@ -1,7 +1,6 @@
 """Remote media download + local audio playback (WAV via winsound, MP3 via MCI)."""
 
 import os
-import time
 import random
 import ctypes
 import threading
@@ -82,6 +81,11 @@ def _remote_media_cache(value, kind):
         return ""
 
 
+def _resolve_image(value):
+    """Default *resolve* for choose_background(s): cache remote images locally."""
+    return _remote_media_cache(value, "image")
+
+
 def background_sources(cfg):
     """Return the configured background images (local paths or URLs), in order.
 
@@ -111,7 +115,7 @@ def choose_background(sources, previous=None, rng=random, resolve=None, exists=o
     Remote sources are only downloaded when they get tried.
     """
     if resolve is None:
-        resolve = lambda v: _remote_media_cache(v, "image")
+        resolve = _resolve_image
     fresh = [x for x in sources if x != previous]
     rng.shuffle(fresh)
     others = [x for x in sources if x == previous]
@@ -133,7 +137,7 @@ def choose_backgrounds(sources, count, previous=None, rng=random, resolve=None, 
     """
     count = max(1, int(count))
     if resolve is None:
-        resolve = lambda v: _remote_media_cache(v, "image")
+        resolve = _resolve_image
     fresh = [x for x in sources if x != previous]
     rng.shuffle(fresh)
     others = [x for x in sources if x == previous]

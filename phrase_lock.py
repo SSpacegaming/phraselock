@@ -11,6 +11,15 @@ import sys
 from config import (
     CONFIG_DIR, log, load_config, within_schedule, pause_remaining_seconds,
 )
+# CONFIG_PATH/STATS_PATH/DEFAULT_CONFIG/save_json and (below) get_progress/
+# get_xp_level/badges_for/get_streak/weekly_series/set_emergency_password
+# aren't called in this file — settings.py reaches them via
+# `import phrase_lock; phrase_lock.get_streak(...)` etc, per the re-export
+# note in this module's docstring above. Keep these even though a plain
+# lint pass will call them unused.
+from config import (  # noqa: F401
+    CONFIG_PATH, STATS_PATH, DEFAULT_CONFIG, save_json,
+)
 from media import (
     play_audio,
 )
@@ -25,6 +34,10 @@ from session import (
     MONITOR_MUTEX_NAME, acquire_single_instance,
     _start_idle_monitor, show_focus_session, watch_session_events,
     start_watchdog,
+)
+from stats import (  # noqa: F401
+    get_progress, get_xp_level, badges_for, get_streak, weekly_series,
+    set_emergency_password,
 )
 
 from tray import start_tray
